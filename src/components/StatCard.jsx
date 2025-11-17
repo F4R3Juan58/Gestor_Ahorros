@@ -1,58 +1,55 @@
 import React from "react";
 import { motion } from "framer-motion";
 
+const statusConfig = {
+  positive: {
+    badge: "border-emerald-300/40 bg-emerald-400/10 text-emerald-100",
+    text: "text-emerald-100",
+    label: "Saludable",
+    gradient: "from-emerald-200/10 via-transparent to-transparent",
+  },
+  negative: {
+    badge: "border-rose-300/40 bg-rose-400/10 text-rose-100",
+    text: "text-rose-100",
+    label: "Revisar",
+    gradient: "from-rose-200/15 via-transparent to-transparent",
+  },
+  neutral: {
+    badge: "border-slate-300/30 bg-white/5 text-slate-100",
+    text: "text-white",
+    label: "Seguimiento",
+    gradient: "from-white/10 via-transparent to-transparent",
+  },
+};
+
 export const StatCard = ({ label, value, highlight = "neutral", helper }) => {
-  // Iconos según el tipo
-  const icons = {
-    positive: "📈",
-    negative: "📉",
-    neutral: "📊",
-  };
-
-  const icon = icons[highlight] || icons.neutral;
-
-  // Texto según estado
-  const textColor =
-    highlight === "positive"
-      ? "text-emerald-300"
-      : highlight === "negative"
-      ? "text-rose-300"
-      : "text-sky-300";
-
-  // Gradiente según estado
-  const gradient =
-    highlight === "positive"
-      ? "from-emerald-500/40 via-emerald-400/20 to-sky-500/20"
-      : highlight === "negative"
-      ? "from-rose-500/40 via-rose-400/20 to-amber-400/20"
-      : "from-sky-500/40 via-indigo-500/20 to-fuchsia-500/20";
+  const config = statusConfig[highlight] || statusConfig.neutral;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.02, y: -4 }}
+      whileHover={{ y: -6 }}
       transition={{ duration: 0.25 }}
-      className="relative overflow-hidden rounded-3xl bg-slate-950/70 p-5 backdrop-blur-xl ring-1 ring-white/10 shadow-xl shadow-black/40"
+      className="surface-soft relative overflow-hidden p-5"
     >
-      {/* Fondo con gradiente */}
       <div
-        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${gradient} opacity-40`}
+        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${config.gradient}`}
       />
 
-      {/* Contenido */}
-      <div className="relative flex flex-col gap-2">
+      <div className="relative flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-300">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
             {label}
           </p>
-
-          {/* ICONO */}
-          <span className="text-lg opacity-90">{icon}</span>
+          <span
+            className={`rounded-full border px-3 py-1 text-[11px] font-medium ${config.badge}`}
+          >
+            {config.label}
+          </span>
         </div>
 
-        {/* VALOR */}
-        <p className={`text-2xl font-semibold ${textColor}`}>
+        <p className={`text-3xl font-semibold ${config.text}`}>
           {typeof value === "number"
             ? value.toLocaleString("es-ES", {
                 style: "currency",
@@ -62,11 +59,8 @@ export const StatCard = ({ label, value, highlight = "neutral", helper }) => {
             : value}
         </p>
 
-        {/* TEXTO AUXILIAR */}
         {helper && (
-          <p className="text-[11px] leading-relaxed text-slate-300/80">
-            {helper}
-          </p>
+          <p className="text-sm leading-relaxed text-slate-300/80">{helper}</p>
         )}
       </div>
     </motion.div>
