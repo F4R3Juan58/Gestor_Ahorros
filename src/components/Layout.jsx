@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { SettingsPanel } from "../components/SettingsPanel";
 import { useFinance } from "../context/FinanceContext";
+import { LoginModal } from "./LoginModal";
+import { useAuth } from "../context/AuthContext";
 
 const navItems = [
   { to: "/", label: "Dashboard", description: "Visión general", icon: "🏛️" },
@@ -40,7 +42,9 @@ const formatCurrency = (value) =>
 export const Layout = () => {
   const [openSettings, setOpenSettings] = useState(false);
   const [openMobileNav, setOpenMobileNav] = useState(false);
+  const [openLogin, setOpenLogin] = useState(false);
   const { metrics } = useFinance();
+  const { user } = useAuth();
 
   const healthScore = metrics.totalIncomes
     ? Math.max(Math.min((metrics.savings / metrics.totalIncomes) * 100, 120), -120)
@@ -106,8 +110,9 @@ export const Layout = () => {
 
         {/* SIDEBAR */}
         <aside className={asideClass}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-white via-amber-100 to-white text-[#0f172a] text-xl font-semibold">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-white via-amber-100 to-white text-[#0f172a] text-xl font-semibold">
               €
             </div>
             <div>
@@ -115,6 +120,21 @@ export const Layout = () => {
               <p className="text-xs text-slate-400">Control fino de tus finanzas</p>
             </div>
           </div>
+            <button
+              onClick={() => setOpenLogin(true)}
+              className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] text-white"
+            >
+              {user ? user.name.split(" ")[0] : "Login"}
+            </button>
+          </div>
+
+          {user && (
+            <div className="rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-[11px] text-emerald-100">
+              <p className="uppercase tracking-[0.3em] text-emerald-200">Sync</p>
+              <p className="text-white">Código: {user.syncCode}</p>
+              <p className="text-emerald-100/70">Comparte para conectar tus dispositivos.</p>
+            </div>
+          )}
 
           <nav className="space-y-2 text-sm">
             {navItems.map((item) => (
@@ -187,6 +207,12 @@ export const Layout = () => {
               >
                 Ajustes
               </button>
+              <button
+                onClick={() => setOpenLogin(true)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
+              >
+                {user ? "Perfil" : "Login"}
+              </button>
             </div>
           </div>
 
@@ -198,6 +224,12 @@ export const Layout = () => {
               >
                 Ajustes
               </button>
+              <button
+                onClick={() => setOpenLogin(true)}
+                className="ml-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+              >
+                {user ? "Perfil" : "Login"}
+              </button>
             </div>
             <Outlet />
           </div>
@@ -205,6 +237,7 @@ export const Layout = () => {
       </div>
 
       <SettingsPanel open={openSettings} onClose={() => setOpenSettings(false)} />
+      <LoginModal open={openLogin} onClose={() => setOpenLogin(false)} />
     </div>
   );
 };

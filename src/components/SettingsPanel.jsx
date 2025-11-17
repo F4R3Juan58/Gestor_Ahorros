@@ -5,9 +5,14 @@ import { useFinance } from "../context/FinanceContext";
 
 export const SettingsPanel = ({ open, onClose }) => {
   const { theme, setTheme, language, setLanguage } = useSettings();
-  const { data, metrics, resetData } = useFinance();
+  const { data, metrics, resetData, updateReminderSettings } = useFinance();
   const [copied, setCopied] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const reminderSettings = data.reminderSettings || {
+    cadence: "mensual",
+    channel: "email",
+    hour: "09:00",
+  };
 
   const exportCSV = () => {
     const rows = [
@@ -49,6 +54,70 @@ export const SettingsPanel = ({ open, onClose }) => {
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const exportGoalsPDF = () => {
+    const htmlRows = data.goals
+      .map(
+        (goal) => `
+        <tr>
+          <td>${goal.name}</td>
+          <td>${goal.category}</td>
+          <td>${goal.recurrence}</td>
+          <td>${goal.saved}/${goal.cost}</td>
+          <td>${goal.reminderCadence}</td>
+        </tr>`
+      )
+      .join("");
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`
+      <html>
+        <head>
+          <title>Resumen de metas</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 8px; font-size: 12px; }
+            th { background: #f3f3f3; text-transform: uppercase; }
+          </style>
+        </head>
+        <body>
+          <h1>Resumen de metas</h1>
+          <p>Total ahorrado: ${metrics.savings.toFixed(2)} €</p>
+          <table>
+            <thead>
+              <tr><th>Meta</th><th>Categoría</th><th>Recurrencia</th><th>Progreso</th><th>Recordatorio</th></tr>
+            </thead>
+            <tbody>${htmlRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+  };
+
+  const exportContributionsCSV = () => {
+    const rows = [["Meta", "Fecha", "Cantidad", "Nota"]];
+    data.goals.forEach((goal) => {
+      goal.contributions.forEach((c) =>
+        rows.push([
+          goal.name,
+          new Date(c.date).toLocaleDateString("es-ES"),
+          c.amount,
+          c.note || "",
+        ])
+      );
+    });
+    const csv = rows.map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "aportes.csv";
+    link.click();
   };
 
   const handleReset = () => {
@@ -141,12 +210,54 @@ export const SettingsPanel = ({ open, onClose }) => {
               <span className="block text-[11px] text-slate-400">Perfecto para compartir o migrar</span>
             </button>
             <button
+              onClick={exportGoalsPDF}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-white"
+            >
+              Resumen de metas en PDF
+              <span className="block text-[11px] text-slate-400">Se abrirá vista imprimible</span>
+            </button>
+            <button
+              onClick={exportContributionsCSV}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-white"
+            >
+              Exportar aportes en CSV
+              <span className="block text-[11px] text-slate-400">Historial de colaboraciones</span>
+            </button>
+            <button
               onClick={copySummary}
               className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-white"
             >
               {copied ? "Copiado ✅" : "Copiar resumen mensual"}
               <span className="block text-[11px] text-slate-400">Ingresos vs gastos del mes</span>
             </button>
+          </div>
+        </div>
+
+        <div className="space-y-3 text-sm">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Recordatorios automáticos</p>
+          <div className="grid gap-3">
+            <select
+              className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white"
+              value={reminderSettings.cadence}
+              onChange={(e) => updateReminderSettings({ cadence: e.target.value })}
+            >
+              <option value="semanal">Semanales</option>
+              <option value="mensual">Mensuales</option>
+            </select>
+            <select
+              className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white"
+              value={reminderSettings.channel}
+              onChange={(e) => updateReminderSettings({ channel: e.target.value })}
+            >
+              <option value="email">Email</option>
+              <option value="push">Push (PWA)</option>
+            </select>
+            <input
+              type="time"
+              className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white"
+              value={reminderSettings.hour}
+              onChange={(e) => updateReminderSettings({ hour: e.target.value })}
+            />
           </div>
         </div>
 

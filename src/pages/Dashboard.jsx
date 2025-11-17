@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useFinance } from "../context/FinanceContext";
 import { StatCard } from "../components/StatCard";
@@ -19,8 +19,38 @@ const getHealthLabel = (rate) => {
   return "En alerta";
 };
 
+const expandGoal = (goal) => {
+  const progress = goal.cost > 0 ? (goal.saved / goal.cost) * 100 : 0;
+  const deadline = new Date(goal.deadline || goal.createdAt || new Date());
+  const daysLeft = Math.max(Math.ceil((deadline - Date.now()) / (1000 * 60 * 60 * 24)), 0);
+  const remaining = Math.max(goal.cost - goal.saved, 0);
+  const monthly = goal.months ? remaining / goal.months : remaining / 3;
+  return { ...goal, progress, daysLeft, remaining, monthly };
+};
+
 export const Dashboard = () => {
   const { metrics, data } = useFinance();
+
+  const goals = useMemo(() => data.goals.map(expandGoal), [data.goals]);
+  const activeGoals = goals.filter((goal) => goal.saved < goal.cost);
+  const completedGoals = goals.filter((goal) => goal.saved >= goal.cost);
+  const totalGoalSaved = goals.reduce((acc, goal) => acc + Math.min(goal.saved, goal.cost), 0);
+  const totalGoalCost = goals.reduce((acc, goal) => acc + goal.cost, 0);
+  const nextGoal = activeGoals.sort((a, b) => a.daysLeft - b.daysLeft)[0];
+  const recentContributions = useMemo(
+    () =>
+      data.goals
+        .flatMap((goal) =>
+          goal.contributions.map((contribution) => ({
+            ...contribution,
+            goal: goal.name,
+            category: goal.category,
+          }))
+        )
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 6),
+    [data.goals]
+  );
 
   const savingsRate = metrics.totalIncomes
     ? (metrics.savings / metrics.totalIncomes) * 100
@@ -83,6 +113,29 @@ export const Dashboard = () => {
     });
   }
 
+  const globalGoalStats = [
+    {
+      label: "Total ahorrado en metas",
+      value: formatCurrency(totalGoalSaved),
+      helper: "Suma colaborativa + tus aportes.",
+    },
+    {
+      label: "Capital necesario",
+      value: formatCurrency(Math.max(totalGoalCost - totalGoalSaved, 0)),
+      helper: `${activeGoals.length} metas activas`,
+    },
+    {
+      label: "Metas completadas",
+      value: completedGoals.length,
+      helper: "Se pueden archivar o duplicar.",
+    },
+    {
+      label: "Recordatorios activos",
+      value: activeGoals.length,
+      helper: "Se envían según la cadencia seleccionada.",
+    },
+  ];
+
   const statCards = [
     {
       label: "Ingresos mes",
@@ -101,6 +154,12 @@ export const Dashboard = () => {
       value: metrics.yearlyEstimate,
       highlight: metrics.yearlyEstimate > 0 ? "positive" : "negative",
       helper: "Proyección manteniendo tu ritmo actual.",
+    },
+    {
+      label: "Metas activas",
+      value: activeGoals.length,
+      highlight: activeGoals.length > 0 ? "neutral" : "negative",
+      helper: `Objetivos con recordatorios automáticos (${completedGoals.length} completados).`,
     },
   ];
 
@@ -177,6 +236,21 @@ export const Dashboard = () => {
           <StatCard key={card.label} {...card} />
         ))}
       </div>
+
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="surface-card grid gap-4 p-6 md:grid-cols-4"
+      >
+        {globalGoalStats.map((item) => (
+          <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{item.label}</p>
+            <p className="mt-2 text-lg font-semibold text-white">{item.value}</p>
+            <p className="text-[11px] text-slate-400">{item.helper}</p>
+          </div>
+        ))}
+      </motion.section>
 
       <div className="grid gap-8 lg:grid-cols-[1.3fr,0.9fr]">
         <motion.div
@@ -269,6 +343,114 @@ export const Dashboard = () => {
           )}
         </motion.div>
       </div>
+
+      <div className="grid gap-8 lg:grid-cols-[1.2fr,0.8fr]">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="surface-card space-y-4 p-6"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Aportes recientes a metas</h3>
+            <span className="text-xs text-slate-400">Colaborativos + personales</span>
+          </div>
+          {recentContributions.length === 0 ? (
+            <p className="text-sm text-slate-400">Registra un aporte desde la sección de metas.</p>
+          ) : (
+            <div className="space-y-3">
+              {recentContributions.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+                >
+                  <div>
+                    <p className="font-medium text-white">{entry.goal}</p>
+                    <p className="text-[11px] text-slate-400">
+                      {new Date(entry.date).toLocaleDateString("es-ES")} · {entry.category}
+                      {entry.note ? ` · ${entry.note}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-emerald-200">+{formatCurrency(entry.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.05 }}
+          className="surface-card space-y-5 p-6"
+        >
+          <h3 className="text-sm font-semibold text-white">Objetivos automáticos</h3>
+          {nextGoal ? (
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Próxima meta</p>
+              <p className="mt-1 text-lg font-semibold text-white">{nextGoal.name}</p>
+              <p className="text-[11px] text-slate-400">
+                {nextGoal.daysLeft} días restantes · necesitas ahorrar {formatCurrency(
+                  nextGoal.remaining
+                )}
+              </p>
+              <p className="mt-3 text-sm text-emerald-200">
+                Para cumplir esta meta en {nextGoal.months} meses necesitas ahorrar {formatCurrency(
+                  nextGoal.monthly
+                )}
+                /mes
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400">Crea una meta para activar la planificación automática.</p>
+          )}
+
+          <div className="space-y-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Recordatorios programados</p>
+            {activeGoals.slice(0, 3).map((goal) => (
+              <div key={goal.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center justify-between text-xs text-white">
+                  <span>{goal.name}</span>
+                  <span className="text-slate-400">{goal.reminderCadence || "mensual"}</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Próximo aporte sugerido: {formatCurrency(goal.monthly)} · Canal {goal.reminderChannel}
+                </p>
+              </div>
+            ))}
+            {activeGoals.length === 0 && (
+              <p className="text-xs text-slate-400">Sin metas activas.</p>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="surface-card space-y-4 p-6"
+      >
+        <h3 className="text-sm font-semibold text-white">Metas compartidas</h3>
+        {goals.filter((goal) => goal.collaborators?.length).length === 0 ? (
+          <p className="text-sm text-slate-400">Comparte una meta desde la sección correspondiente para coordinar aportes familiares.</p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-3">
+            {goals
+              .filter((goal) => goal.collaborators?.length)
+              .map((goal) => (
+                <div key={goal.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                  <p className="font-medium text-white">{goal.name}</p>
+                  <p className="text-[11px] text-slate-400">
+                    Código: {goal.sharedCode} · {goal.collaborators.length} participantes
+                  </p>
+                  <p className="mt-2 text-xs text-slate-300">
+                    {goal.collaborators.map((c) => c.name).join(", ")}
+                  </p>
+                </div>
+              ))}
+          </div>
+        )}
+      </motion.div>
 
       {insights.length > 0 && (
         <motion.div
