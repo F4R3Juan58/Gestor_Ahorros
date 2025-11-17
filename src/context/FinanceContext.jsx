@@ -4,11 +4,63 @@ import { persist } from "zustand/middleware";
 
 const STORAGE_KEY = "savings-modern-data-v1";
 
-const defaultData = {
+const defaultReminderSettings = {
+  enabled: true,
+  cadence: "mensual",
+  channel: "email",
+  hour: "09:00",
+};
+
+const createDefaultData = () => ({
   incomes: [],
   subscriptions: [],
   expenses: [],
   goals: [],
+  reminderSettings: { ...defaultReminderSettings },
+});
+
+const defaultData = createDefaultData();
+
+const goalBlueprint = (goal) => {
+  const months = Number(goal.months || 6);
+  const createdAt = goal.createdAt || new Date().toISOString();
+  const deadlineFromMonths = new Date(createdAt);
+  deadlineFromMonths.setMonth(deadlineFromMonths.getMonth() + months);
+  const resolvedDeadline = goal.deadline || deadlineFromMonths.toISOString();
+
+  return {
+    id: crypto.randomUUID(),
+    name: goal.name,
+    cost: Number(goal.cost) || 0,
+    months,
+    saved: Number(goal.saved) || 0,
+    category: goal.category || "general",
+    recurrence: goal.recurrence || "unica",
+    reminderCadence: goal.reminderCadence || "mensual",
+    reminderChannel: goal.reminderChannel || "email",
+    deadline: resolvedDeadline,
+    createdAt,
+    sharedCode: goal.sharedCode || Math.random().toString(36).slice(2, 8).toUpperCase(),
+    collaborators: goal.collaborators || [],
+    contributions: goal.contributions || [],
+    notes: goal.notes || "",
+    status: goal.status || "active",
+    completedAt: goal.completedAt || null,
+    reminderOptIn:
+      goal.reminderOptIn === undefined ? true : Boolean(goal.reminderOptIn),
+  };
+};
+
+const nextDeadlineFromRecurrence = (goal) => {
+  const current = goal.deadline ? new Date(goal.deadline) : new Date();
+  if (goal.recurrence === "mensual") {
+    current.setMonth(current.getMonth() + 1);
+  } else if (goal.recurrence === "anual") {
+    current.setFullYear(current.getFullYear() + 1);
+  } else {
+    current.setMonth(current.getMonth() + (goal.months || 6));
+  }
+  return current.toISOString();
 };
 
 // --- Cálculo de métricas (igual que tu useMemo, pero como función pura) ---
@@ -144,19 +196,124 @@ export const useFinanceStore = create(
         set((state) => ({
           data: {
             ...state.data,
-            goals: [
-              ...state.data.goals,
-              { id: crypto.randomUUID(), saved: 0, ...goal },
-            ],
+            goals: [...state.data.goals, goalBlueprint(goal)],
           },
         })),
 
-      updateGoalSaved: (goalId, amount) =>
+      updateGoalSaved: (goalId, amount, payload = {}) =>
+        get().addGoalContribution(goalId, {
+          amount,
+          note: payload.note || "Ajuste rápido",
+          author: payload.author,
+          date: payload.date,
+        }),
+
+      addGoalContribution: (goalId, contribution) => {
+        let celebration = null;
+        set((state) => {
+          const goals = state.data.goals.reduce((acc, goal) => {
+            if (goal.id !== goalId) return [...acc, goal];
+            const amount = Number(contribution.amount || 0);
+            if (!amount) return [...acc, goal];
+
+            const updatedSaved = goal.saved + amount;
+            const contributions = [
+              {
+                id: crypto.randomUUID(),
+                date: contribution.date || new Date().toISOString(),
+                amount,
+                note: contribution.note || "",
+                author: contribution.author || "Tú",
+              },
+              ...(goal.contributions || []),
+            ];
+
+            const completed = updatedSaved >= goal.cost;
+            if (completed && goal.status !== "completed") {
+              celebration = { goalId, goalName: goal.name };
+            }
+
+            const updatedGoal = {
+              ...goal,
+              saved: updatedSaved,
+              contributions,
+              status: completed ? "completed" : goal.status,
+              completedAt: completed ? new Date().toISOString() : goal.completedAt,
+            };
+
+            return [...acc, updatedGoal];
+          }, []);
+
+          let extendedGoals = goals;
+          if (celebration) {
+            const goal = goals.find((g) => g.id === celebration.goalId);
+            if (goal && goal.recurrence !== "unica") {
+              const nextGoal = goalBlueprint({
+                ...goal,
+                saved: 0,
+                contributions: [],
+                status: "active",
+                deadline: nextDeadlineFromRecurrence(goal),
+                createdAt: new Date().toISOString(),
+                notes: `${goal.notes || ""} · Ciclo renovado automáticamente`,
+              });
+              extendedGoals = [...goals, nextGoal];
+            }
+          }
+
+          return {
+            data: {
+              ...state.data,
+              goals: extendedGoals,
+            },
+          };
+        });
+
+        return celebration;
+      },
+
+      updateGoalReminder: (goalId, reminder) =>
         set((state) => ({
           data: {
             ...state.data,
-            goals: state.data.goals.map((g) =>
-              g.id === goalId ? { ...g, saved: g.saved + amount } : g
+            goals: state.data.goals.map((goal) =>
+              goal.id === goalId
+                ? {
+                    ...goal,
+                    reminderCadence: reminder.cadence || goal.reminderCadence,
+                    reminderChannel: reminder.channel || goal.reminderChannel,
+                    reminderOptIn:
+                      reminder.enabled === undefined
+                        ? goal.reminderOptIn
+                        : reminder.enabled,
+                  }
+                : goal
+            ),
+          },
+        })),
+
+      updateReminderSettings: (settings) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            reminderSettings: {
+              ...state.data.reminderSettings,
+              ...settings,
+            },
+          },
+        })),
+
+      addGoalCollaborator: (goalId, collaborator) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            goals: state.data.goals.map((goal) =>
+              goal.id === goalId
+                ? {
+                    ...goal,
+                    collaborators: [...(goal.collaborators || []), collaborator],
+                  }
+                : goal
             ),
           },
         })),
@@ -197,7 +354,7 @@ export const useFinanceStore = create(
           },
         })),
 
-      resetData: () => set({ data: defaultData }),
+      resetData: () => set({ data: createDefaultData() }),
     }),
     {
       name: STORAGE_KEY,
@@ -216,6 +373,10 @@ export const useFinance = () => {
     addExpense,
     addGoal,
     updateGoalSaved,
+    addGoalContribution,
+    updateGoalReminder,
+    updateReminderSettings,
+    addGoalCollaborator,
     deleteIncome,
     deleteExpense,
     deleteSubscription,
@@ -223,16 +384,47 @@ export const useFinance = () => {
     resetData,
   } = useFinanceStore();
 
-  const metrics = computeMetrics(data);
+  const normalizedGoals = data.goals.map((goal) => {
+    const createdAt = goal.createdAt || new Date().toISOString();
+    const fallbackDeadlineDate = new Date(createdAt);
+    fallbackDeadlineDate.setMonth(fallbackDeadlineDate.getMonth() + (goal.months || 6));
+    return {
+      ...goal,
+      category: goal.category || "general",
+      recurrence: goal.recurrence || "unica",
+      contributions: goal.contributions || [],
+      collaborators: goal.collaborators || [],
+      reminderCadence: goal.reminderCadence || "mensual",
+      reminderChannel: goal.reminderChannel || "email",
+      sharedCode: goal.sharedCode || "SYNC",
+      createdAt,
+      deadline: goal.deadline || fallbackDeadlineDate.toISOString(),
+    };
+  });
+
+  const normalizedData = {
+    ...data,
+    goals: normalizedGoals,
+    reminderSettings: {
+      ...defaultReminderSettings,
+      ...data.reminderSettings,
+    },
+  };
+
+  const metrics = computeMetrics(normalizedData);
 
   return {
-    data,
+    data: normalizedData,
     setData,
     addIncome,
     addSubscription,
     addExpense,
     addGoal,
     updateGoalSaved,
+    addGoalContribution,
+    updateGoalReminder,
+    updateReminderSettings,
+    addGoalCollaborator,
     deleteIncome,
     deleteExpense,
     deleteSubscription,

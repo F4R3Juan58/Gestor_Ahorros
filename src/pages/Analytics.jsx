@@ -4,89 +4,160 @@ import { SectionTitle } from "../components/SectionTitle";
 import { SimpleBarChart } from "../components/SimpleBarChart";
 import { motion } from "framer-motion";
 
+const formatCurrency = (value) =>
+  (value || 0).toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR",
+  });
+
 export const Analytics = () => {
-  const { metrics } = useFinance();
+  const { metrics, data } = useFinance();
+
+  const monthlyTrend = metrics.history.slice(-6);
+  const hasData = monthlyTrend.length > 0;
+
+  const commentary = hasData
+    ? metrics.avgMonthly > 0
+      ? "Tu media mensual es positiva: mantén el hábito y reserva parte para tus metas."
+      : "La media mensual es negativa. Revisa gastos recurrentes o incrementa tus ingresos."
+    : "Registra movimientos para ver recomendaciones personalizadas.";
+
+  const categoryBreakdown = data.goals.reduce((acc, goal) => {
+    if (!acc[goal.category]) acc[goal.category] = { amount: 0, count: 0 };
+    acc[goal.category].amount += goal.saved;
+    acc[goal.category].count += 1;
+    return acc;
+  }, {});
+
+  const recurrenceGoals = data.goals.filter((goal) => goal.recurrence !== "unica");
 
   return (
     <div className="space-y-8">
       <SectionTitle
-        title="Analíticas de ahorro"
-        subtitle="Visualiza tu evolución mensual y tu proyección anual con claridad."
+        title="Analítica avanzada"
+        subtitle="Visualiza la evolución mensual, proyecciones y oportunidades de mejora."
       />
 
-      <div className="grid gap-8 md:grid-cols-[1.35fr,0.95fr]">
-
-        {/* GRAFICO PRINCIPAL */}
+      <div className="grid gap-8 lg:grid-cols-[1.35fr,0.95fr]">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="rounded-4xl bg-slate-950/70 backdrop-blur-xl p-6 ring-1 ring-white/10 shadow-xl shadow-black/40"
+          className="surface-card p-6"
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-100 tracking-tight">
-              Ahorro mensual (últimos 12 meses)
-            </h3>
-            <span className="text-xs text-slate-400">
-              Verde = ahorro · Rojo = déficit
-            </span>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Ahorro mensual</p>
+              <h3 className="text-lg font-semibold text-white">Últimos 12 meses</h3>
+            </div>
+            <span className="text-xs text-slate-400">Verde = ahorro · Rojo = déficit</span>
           </div>
-
-          <div className="mt-5">
+          <div className="mt-6">
             <SimpleBarChart data={metrics.history.slice(-12)} />
           </div>
         </motion.div>
 
-        {/* TARJETAS DE DATOS */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.1 }}
-          className="space-y-6 rounded-4xl bg-slate-950/70 backdrop-blur-xl p-6 ring-1 ring-white/10 shadow-xl shadow-black/40 text-sm"
+          transition={{ delay: 0.1 }}
+          className="surface-card space-y-6 p-6 text-sm"
         >
-          {/* Media mensual */}
-          <div className="space-y-1">
-            <p className="text-xs text-slate-300">Media de ahorro mensual</p>
-            <p className="text-3xl font-semibold bg-gradient-to-r from-sky-300 to-sky-500 bg-clip-text text-transparent">
-              {metrics.avgMonthly.toLocaleString("es-ES", {
-                style: "currency",
-                currency: "EUR",
-              })}
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Media mensual</p>
+            <p className="text-3xl font-semibold text-white">
+              {formatCurrency(metrics.avgMonthly)}
             </p>
-            <p className="text-xs text-slate-400">
-              Basado en tus últimos movimientos.
-            </p>
+            <p className="mt-1 text-slate-400">Basado en todos tus registros.</p>
           </div>
 
-          {/* Ahorro anual estimado */}
-          <div className="space-y-1 pt-2">
-            <p className="text-xs text-slate-300">Ahorro anual estimado</p>
-            <p className="text-3xl font-semibold bg-gradient-to-r from-emerald-300 to-emerald-500 bg-clip-text text-transparent">
-              {metrics.yearlyEstimate.toLocaleString("es-ES", {
-                style: "currency",
-                currency: "EUR",
-              })}
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Proyección anual</p>
+            <p className="text-3xl font-semibold text-emerald-200">
+              {formatCurrency(metrics.yearlyEstimate)}
             </p>
-            <p className="text-xs text-slate-400">
-              Manteniendo tu ritmo actual de ahorro.
-            </p>
+            <p className="mt-1 text-slate-400">Manteniendo el ritmo actual.</p>
           </div>
 
-          {/* Tip consejo */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.35, delay: 0.2 }}
-            className="mt-4 rounded-3xl bg-gradient-to-br from-sky-700/20 via-indigo-700/20 to-fuchsia-700/20 p-4 ring-1 ring-sky-500/40 shadow-md shadow-black/30"
-          >
-            <h4 className="text-sm font-medium text-sky-200">Consejo útil</h4>
-            <p className="mt-1 text-xs text-slate-200/90 leading-relaxed">
-              Controla tus gastos variables (comida fuera, ocio, compras impulsivas).
-              Reducir pequeñas cantidades cada mes puede elevar mucho tu ahorro anual.
-            </p>
-          </motion.div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Comentario</p>
+            <p className="mt-2 text-sm text-white">{commentary}</p>
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="surface-card grid gap-6 p-6 md:grid-cols-3"
+      >
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Mes con mejor ahorro</p>
+          <p className="mt-2 text-sm text-white">
+            {metrics.history.length > 0
+              ? metrics.history.reduce((best, item) => (item.value > best.value ? item : best), metrics.history[0]).label
+              : "Registra movimientos"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Mes con mayor gasto</p>
+          <p className="mt-2 text-sm text-white">
+            {metrics.history.length > 0
+              ? metrics.history.reduce((worst, item) => (item.value < worst.value ? item : worst), metrics.history[0]).label
+              : "Registra movimientos"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Ahorro actual</p>
+          <p className="mt-2 text-sm text-white">{formatCurrency(metrics.savings)}</p>
+        </div>
+      </motion.div>
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="surface-card space-y-4 p-6"
+        >
+          <h3 className="text-sm font-semibold text-white">Categorías de metas</h3>
+          {Object.keys(categoryBreakdown).length === 0 ? (
+            <p className="text-sm text-slate-400">Crea metas para ver su distribución.</p>
+          ) : (
+            <div className="space-y-3">
+              {Object.entries(categoryBreakdown).map(([category, info]) => (
+                <div key={category} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-white">{category}</span>
+                    <span className="text-xs text-slate-400">{info.count} metas</span>
+                  </div>
+                  <p className="text-xs text-slate-400">{formatCurrency(info.amount)} ahorrados</p>
+                </div>
+              ))}
+            </div>
+          )}
         </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="surface-card space-y-4 p-6"
+        >
+          <h3 className="text-sm font-semibold text-white">Metas recurrentes</h3>
+          {recurrenceGoals.length === 0 ? (
+            <p className="text-sm text-slate-400">Activa la recurrencia al crear una meta para automatizar futuras ediciones.</p>
+          ) : (
+            <div className="space-y-3 text-sm">
+              {recurrenceGoals.map((goal) => (
+                <div key={goal.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="font-medium text-white">{goal.name}</p>
+                  <p className="text-[11px] text-slate-400">
+                    Recurrencia {goal.recurrence} · próximo ciclo {new Date(goal.deadline).toLocaleDateString("es-ES")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
       </div>
     </div>
   );
