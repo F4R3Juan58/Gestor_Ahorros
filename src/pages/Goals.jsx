@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SectionTitle } from "../components/SectionTitle";
 import { useFinance } from "../context/FinanceContext";
@@ -20,10 +20,46 @@ const goalCategories = [
   { value: "otros", label: "Otros" },
 ];
 
+const goalTemplates = [
+  {
+    id: "viaje-anual",
+    name: "Viaje anual",
+    cost: 1800,
+    months: 12,
+    category: "viajes",
+    recurrence: "anual",
+    reminderCadence: "mensual",
+  },
+  {
+    id: "fondo-emergencia",
+    name: "Fondo de emergencia",
+    cost: 3000,
+    months: 10,
+    category: "emergencias",
+    recurrence: "mensual",
+    reminderCadence: "semanal",
+  },
+  {
+    id: "renovar-equipo",
+    name: "Renovar equipo",
+    cost: 1200,
+    months: 6,
+    category: "compras",
+    recurrence: "anual",
+    reminderCadence: "mensual",
+  },
+];
+
 const createId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const extendDeadline = (goal, extraMonths = 1) => {
+  const base = new Date(goal.deadline || goal.createdAt || new Date());
+  base.setMonth(base.getMonth() + extraMonths);
+  return base.toISOString();
+};
 
 const computeGoalInsights = (goal) => {
   const progress = goal.cost > 0 ? (goal.saved / goal.cost) * 100 : 0;
@@ -91,6 +127,10 @@ export const Goals = () => {
     deleteGoal,
     updateGoalReminder,
     addGoalCollaborator,
+    addGoalComment,
+    updateGoalAutomation,
+    updateGoalCollaboratorRole,
+    updateGoalDetails,
   } = useFinance();
 
   const [form, setForm] = useState({
@@ -106,8 +146,23 @@ export const Goals = () => {
   });
   const [savingForm, setSavingForm] = useState({});
   const [collabForm, setCollabForm] = useState({});
+  const [commentDrafts, setCommentDrafts] = useState({});
   const [filterCategory, setFilterCategory] = useState("todas");
   const [celebration, setCelebration] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [projectionGoalId, setProjectionGoalId] = useState("");
+  const [projectionMonthly, setProjectionMonthly] = useState(150);
+  const [projectionBoost, setProjectionBoost] = useState(10);
+
+  useEffect(() => {
+    if (!projectionGoalId && data.goals.length > 0) {
+      setProjectionGoalId(data.goals[0].id);
+      const base = data.goals[0].months
+        ? data.goals[0].cost / Math.max(data.goals[0].months, 1)
+        : data.goals[0].cost / 6;
+      setProjectionMonthly(Math.max(Math.round(base), 50));
+    }
+  }, [data.goals, projectionGoalId]);
 
   const goalsWithInsights = useMemo(
     () =>
@@ -117,6 +172,19 @@ export const Goals = () => {
       })),
     [data.goals]
   );
+
+  const projectionGoal = goalsWithInsights.find((goal) => goal.id === projectionGoalId);
+  const projectionRemaining = projectionGoal?.insights.remainingAmount || 0;
+  const sanitizedMonthly = Math.max(projectionMonthly, 10);
+  const monthsNeeded = projectionRemaining > 0 ? Math.ceil(projectionRemaining / sanitizedMonthly) : 0;
+  const boostedMonthly = sanitizedMonthly * (1 + projectionBoost / 100);
+  const boostedMonths = projectionRemaining > 0 ? Math.ceil(projectionRemaining / boostedMonthly) : 0;
+  const projectedFinish = (() => {
+    if (!projectionGoal) return null;
+    const date = new Date();
+    date.setMonth(date.getMonth() + monthsNeeded);
+    return date;
+  })();
 
   const filteredGoals = goalsWithInsights.filter((goal) =>
     filterCategory === "todas" ? true : goal.category === filterCategory
@@ -172,6 +240,20 @@ export const Goals = () => {
       reminderChannel: form.reminderChannel,
       notes: "",
     });
+    setSelectedTemplate(null);
+  };
+
+  const handleApplyTemplate = (template) => {
+    setForm((prev) => ({
+      ...prev,
+      name: template.name,
+      cost: template.cost,
+      months: template.months,
+      category: template.category,
+      recurrence: template.recurrence,
+      reminderCadence: template.reminderCadence,
+    }));
+    setSelectedTemplate(template.id);
   };
 
   const handleAddContribution = (goalId) => {
@@ -207,6 +289,65 @@ export const Goals = () => {
       ...prev,
       [goalId]: { name: "", email: "" },
     }));
+  };
+
+  const handleCollaboratorRole = (goalId, collaboratorId, role) => {
+    updateGoalCollaboratorRole(goalId, collaboratorId, role);
+  };
+
+  const handleAddComment = (goalId) => {
+    const draft = commentDrafts[goalId];
+    if (!draft) return;
+    addGoalComment(goalId, { text: draft });
+    setCommentDrafts((prev) => ({ ...prev, [goalId]: "" }));
+  };
+
+  const handleAutomationSave = (goalId, overrides = {}) => {
+    updateGoalAutomation(goalId, overrides);
+  };
+
+  const handleGoalAdjustment = (goalId, changes) => {
+    updateGoalDetails(goalId, changes);
+  };
+
+  const handleExportGoal = (goal) => {
+    const lines = [
+      `Meta: ${goal.name}`,
+      `Objetivo: ${goal.cost}€`,
+      `Ahorrado: ${goal.saved}€`,
+      `Colaboradores: ${goal.collaborators.length}`,
+      `Recordatorios: ${goal.reminderCadence} · ${goal.reminderChannel}`,
+      `Historial: ${goal.history.length} eventos`,
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${goal.name}-reporte.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleShareGoal = async (goal) => {
+    const sharePayload = {
+      title: `Meta compartida: ${goal.name}`,
+      text: `Llevamos ${formatCurrency(goal.saved)} de ${formatCurrency(goal.cost)}. Súmate al enlace seguro.`,
+      url: goal.shareUrl,
+    };
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share(sharePayload);
+        return;
+      } catch (error) {
+        // usuario canceló
+      }
+    }
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(goal.shareUrl);
+      if (typeof window !== "undefined") {
+        window.alert("Enlace copiado para compartir");
+      }
+    }
   };
 
   const celebrationParticles = Array.from({ length: 14 });
@@ -295,6 +436,23 @@ export const Goals = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs text-white">
+            {goalTemplates.map((template) => (
+              <button
+                type="button"
+                key={template.id}
+                onClick={() => handleApplyTemplate(template)}
+                className={`rounded-2xl border px-3 py-1 ${
+                  selectedTemplate === template.id
+                    ? "border-emerald-300 bg-emerald-500/10"
+                    : "border-white/10 bg-white/5"
+                }`}
+              >
+                {template.name}
+              </button>
+            ))}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -473,6 +631,88 @@ export const Goals = () => {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
+        className="surface-card space-y-4 p-6"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-white">Simulador automático</h3>
+          <p className="text-xs text-slate-400">Proyecta cuánto tardas si ajustas tu aporte mensual</p>
+        </div>
+        {goalsWithInsights.length === 0 ? (
+          <p className="text-sm text-slate-400">Crea una meta para activar el simulador.</p>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="text-xs text-slate-400">Meta a simular</label>
+                <select
+                  className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white"
+                  value={projectionGoalId}
+                  onChange={(event) => setProjectionGoalId(event.target.value)}
+                >
+                  {goalsWithInsights.map((goal) => (
+                    <option key={goal.id} value={goal.id}>
+                      {goal.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">Aporte mensual simulado</label>
+                <input
+                  type="range"
+                  min="25"
+                  max="1000"
+                  value={projectionMonthly}
+                  onChange={(event) => setProjectionMonthly(Number(event.target.value))}
+                  className="mt-2 w-full"
+                />
+                <p className="text-xs text-white">{formatCurrency(projectionMonthly)} / mes</p>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">Y si aportas +{projectionBoost}%</label>
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  value={projectionBoost}
+                  onChange={(event) => setProjectionBoost(Number(event.target.value))}
+                  className="mt-2 w-full"
+                />
+                <p className="text-xs text-white">{projectionBoost}% extra ({formatCurrency(boostedMonthly)} / mes)</p>
+              </div>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-white">
+              {projectionGoal ? (
+                <>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Resultado</p>
+                  <p className="mt-2 text-lg font-semibold">{projectionGoal.name}</p>
+                  <p className="text-[11px] text-slate-300">
+                    Restan {formatCurrency(projectionRemaining)} · ritmo actual sugerido {formatCurrency(
+                      projectionGoal.insights.autoMonthly
+                    )}
+                  </p>
+                  <div className="mt-4 grid gap-4 text-xs">
+                    <div>
+                      <p className="text-slate-400">Con tu aporte simulado</p>
+                      <p className="text-white">{monthsNeeded || 0} meses · fin estimado {projectedFinish?.toLocaleDateString("es-ES")}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400">Con +{projectionBoost}%</p>
+                      <p className="text-emerald-200">{boostedMonths || 0} meses · ahorras {monthsNeeded - boostedMonths} meses</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-slate-400">Selecciona una meta para simular.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
         className="surface-card space-y-6 p-6"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -491,16 +731,21 @@ export const Goals = () => {
               const tone = toneStyles[goal.insights.tone];
               return (
                 <div key={goal.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="font-medium text-white">{goal.name}</p>
                       <p className="text-[11px] text-slate-400">
                         {goal.months} meses · {formatCurrency(goal.cost)} · {goal.category}
                       </p>
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-[11px] ${tone.badge}`}>
-                      {goal.insights.badge}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`rounded-full border px-3 py-1 text-[11px] ${tone.badge}`}>
+                        {goal.insights.badge}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {goal.collaborators.length > 0 ? "Meta compartida" : "Meta individual"}
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-3 h-2 rounded-full bg-white/10">
                     <div
@@ -559,7 +804,7 @@ export const Goals = () => {
                       Añadir
                     </button>
                   </div>
-                  <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-400">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
                     <input
                       type="text"
                       placeholder="Nombre colaborador"
@@ -592,11 +837,144 @@ export const Goals = () => {
                       Compartir
                     </button>
                   </div>
+
                   {goal.collaborators.length > 0 && (
-                    <p className="mt-2 text-[11px] text-slate-400">
-                      Participan: {goal.collaborators.map((c) => c.name).join(", ")}
-                    </p>
+                    <div className="mt-3 space-y-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-[11px] text-white">
+                      {goal.collaborators.map((collaborator) => (
+                        <div key={collaborator.id} className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="font-medium">{collaborator.name}</p>
+                            <p className="text-[10px] text-slate-400">{collaborator.email}</p>
+                          </div>
+                          <select
+                            value={collaborator.role || "editor"}
+                            onChange={(event) =>
+                              handleCollaboratorRole(goal.id, collaborator.id, event.target.value)
+                            }
+                            className="rounded-2xl border border-white/10 bg-white/5 px-2 py-1"
+                          >
+                            <option value="viewer">Solo ver</option>
+                            <option value="editor">Puede aportar</option>
+                            <option value="admin">Administrador</option>
+                          </select>
+                        </div>
+                      ))}
+                    </div>
                   )}
+
+                  <div className="mt-4 grid gap-3 text-[11px] text-slate-400 md:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.3em]">Automatización</p>
+                      <p className="text-white">{goal.autoSchedule?.enabled ? "Activa" : "Pausada"}</p>
+                      <p className="text-[10px] text-slate-400">
+                        {goal.autoSchedule?.cadence || "mensual"} · {formatCurrency(goal.autoSchedule?.amount || goal.insights.autoMonthly)}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleAutomationSave(goal.id, {
+                              enabled: !goal.autoSchedule?.enabled,
+                              amount: goal.autoSchedule?.amount || goal.insights.autoMonthly,
+                              cadence: goal.autoSchedule?.cadence || "mensual",
+                            })
+                          }
+                          className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1 text-white"
+                        >
+                          {goal.autoSchedule?.enabled ? "Pausar" : "Activar"}
+                        </button>
+                        <input
+                          type="number"
+                          min="10"
+                          defaultValue={Math.round(goal.autoSchedule?.amount || goal.insights.autoMonthly)}
+                          className="w-24 rounded-2xl border border-white/10 bg-white/5 px-2 py-1 text-white"
+                          onBlur={(event) =>
+                            handleAutomationSave(goal.id, { amount: Number(event.target.value) || goal.insights.autoMonthly })
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.3em]">Historial y versión</p>
+                      <p className="text-xs text-white">v{goal.version}</p>
+                      <ul className="mt-2 space-y-1 text-[10px] text-slate-300">
+                        {(goal.history || []).slice(0, 3).map((entry) => (
+                          <li key={entry.id}>
+                            {new Date(entry.timestamp).toLocaleDateString("es-ES")}: {entry.action} — {entry.detail}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                    <button
+                      type="button"
+                      onClick={() => handleShareGoal(goal)}
+                      className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1"
+                    >
+                      Compartir vista
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExportGoal(goal)}
+                      className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1"
+                    >
+                      Exportar resumen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleGoalAdjustment(goal.id, {
+                          months: (goal.months || 0) + 1,
+                          deadline: extendDeadline(goal, 1),
+                        })
+                      }
+                      className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1"
+                    >
+                      +1 mes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleGoalAdjustment(goal.id, { cost: goal.cost + 100 })}
+                      className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1"
+                    >
+                      +100€ objetivo
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-2 text-[11px] text-slate-400">
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Chat interno</p>
+                    <div className="space-y-1">
+                      {(goal.comments || []).slice(0, 3).map((comment) => (
+                        <div key={comment.id} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white">
+                          <p className="text-xs font-semibold">{comment.author}</p>
+                          <p className="text-[10px] text-slate-300">{comment.text}</p>
+                        </div>
+                      ))}
+                      {(goal.comments || []).length === 0 && <p>No hay comentarios aún.</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Escribe una nota"
+                        className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white"
+                        value={commentDrafts[goal.id] || ""}
+                        onChange={(event) =>
+                          setCommentDrafts((prev) => ({ ...prev, [goal.id]: event.target.value }))
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddComment(goal.id)}
+                        className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white"
+                      >
+                        Enviar
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
                     <span className="chip-muted">{goal.recurrence} · código {goal.sharedCode}</span>
                     <button

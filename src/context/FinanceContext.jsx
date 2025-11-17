@@ -21,12 +21,29 @@ const createDefaultData = () => ({
 
 const defaultData = createDefaultData();
 
+const historyEntry = (action, detail) => ({
+  id: crypto.randomUUID(),
+  timestamp: new Date().toISOString(),
+  action,
+  detail,
+});
+
 const goalBlueprint = (goal) => {
   const months = Number(goal.months || 6);
   const createdAt = goal.createdAt || new Date().toISOString();
   const deadlineFromMonths = new Date(createdAt);
   deadlineFromMonths.setMonth(deadlineFromMonths.getMonth() + months);
   const resolvedDeadline = goal.deadline || deadlineFromMonths.toISOString();
+
+  const initialHistory =
+    goal.history && goal.history.length > 0
+      ? goal.history
+      : [
+          historyEntry(
+            "Creación",
+            `Meta creada con objetivo de €${goal.cost || 0} en ${months} meses`
+          ),
+        ];
 
   return {
     id: crypto.randomUUID(),
@@ -43,11 +60,24 @@ const goalBlueprint = (goal) => {
     sharedCode: goal.sharedCode || Math.random().toString(36).slice(2, 8).toUpperCase(),
     collaborators: goal.collaborators || [],
     contributions: goal.contributions || [],
+    comments: goal.comments || [],
+    history: initialHistory,
+    version: goal.version || 1,
+    shareUrl:
+      goal.shareUrl ||
+      `${typeof window !== "undefined" ? window.location.origin : "app"}/meta/${
+        goal.sharedCode || Math.random().toString(36).slice(2, 8).toUpperCase()
+      }`,
     notes: goal.notes || "",
     status: goal.status || "active",
     completedAt: goal.completedAt || null,
     reminderOptIn:
       goal.reminderOptIn === undefined ? true : Boolean(goal.reminderOptIn),
+    autoSchedule:
+      goal.autoSchedule ||
+      ({ enabled: false, cadence: "mensual", amount: 0, nextRun: resolvedDeadline }),
+    isShared: goal.isShared || false,
+    lastReminder: goal.lastReminder || null,
   };
 };
 
@@ -233,12 +263,25 @@ export const useFinanceStore = create(
               celebration = { goalId, goalName: goal.name };
             }
 
+            const history = [
+              historyEntry(
+                "Aporte",
+                `${contribution.author || "Tú"} añadió ${amount.toLocaleString("es-ES", {
+                  style: "currency",
+                  currency: "EUR",
+                })}`
+              ),
+              ...(goal.history || []),
+            ];
+
             const updatedGoal = {
               ...goal,
               saved: updatedSaved,
               contributions,
               status: completed ? "completed" : goal.status,
               completedAt: completed ? new Date().toISOString() : goal.completedAt,
+              history,
+              version: (goal.version || 1) + 1,
             };
 
             return [...acc, updatedGoal];
@@ -311,7 +354,139 @@ export const useFinanceStore = create(
               goal.id === goalId
                 ? {
                     ...goal,
-                    collaborators: [...(goal.collaborators || []), collaborator],
+                    collaborators: [
+                      ...(goal.collaborators || []),
+                      {
+                        role: collaborator.role || "editor",
+                        joinedAt: new Date().toISOString(),
+                        ...collaborator,
+                      },
+                    ],
+                    isShared: true,
+                    history: [
+                      historyEntry(
+                        "Colaboración",
+                        `${collaborator.name || "Invitado"} se sumó como ${
+                          collaborator.role || "editor"
+                        }`
+                      ),
+                      ...(goal.history || []),
+                    ],
+                  }
+                : goal
+            ),
+          },
+        })),
+
+      updateGoalCollaboratorRole: (goalId, collaboratorId, role) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            goals: state.data.goals.map((goal) =>
+              goal.id === goalId
+                ? {
+                    ...goal,
+                    collaborators: (goal.collaborators || []).map((collab) =>
+                      collab.id === collaboratorId ? { ...collab, role } : collab
+                    ),
+                    history: [
+                      historyEntry(
+                        "Rol actualizado",
+                        `Colaborador ${collaboratorId} ahora es ${role}`
+                      ),
+                      ...(goal.history || []),
+                    ],
+                  }
+                : goal
+            ),
+          },
+        })),
+
+      addGoalComment: (goalId, comment) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            goals: state.data.goals.map((goal) =>
+              goal.id === goalId
+                ? {
+                    ...goal,
+                    comments: [
+                      {
+                        id: crypto.randomUUID(),
+                        author: comment.author || "Tú",
+                        role: comment.role || "colaborador",
+                        text: comment.text,
+                        timestamp: comment.timestamp || new Date().toISOString(),
+                      },
+                      ...(goal.comments || []),
+                    ],
+                  }
+                : goal
+            ),
+          },
+        })),
+
+      updateGoalDetails: (goalId, changes) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            goals: state.data.goals.map((goal) => {
+              if (goal.id !== goalId) return goal;
+
+              const diffs = [];
+              ["cost", "deadline", "months"].forEach((key) => {
+                if (
+                  changes[key] !== undefined &&
+                  Number(changes[key]) !== Number(goal[key])
+                ) {
+                  diffs.push(`${key} → ${changes[key]}`);
+                }
+              });
+
+              const newHistory = diffs.length
+                ? [historyEntry("Ajuste", diffs.join(" | ")), ...(goal.history || [])]
+                : goal.history || [];
+
+              return {
+                ...goal,
+                ...changes,
+                history: newHistory,
+                version:
+                  newHistory !== goal.history
+                    ? (goal.version || 1) + 1
+                    : goal.version,
+              };
+            }),
+          },
+        })),
+
+      updateGoalAutomation: (goalId, automation) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            goals: state.data.goals.map((goal) =>
+              goal.id === goalId
+                ? {
+                    ...goal,
+                    autoSchedule: {
+                      ...goal.autoSchedule,
+                      nextRun:
+                        automation.nextRun ||
+                        goal.autoSchedule?.nextRun ||
+                        nextDeadlineFromRecurrence(goal),
+                      ...automation,
+                    },
+                    history: [
+                      historyEntry(
+                        "Automatización",
+                        automation.enabled
+                          ? `Aporte automático ${automation.amount || goal.autoSchedule?.amount || 0}€ ${
+                              automation.cadence || goal.autoSchedule?.cadence || "mensual"
+                            }`
+                          : "Automatización pausada"
+                      ),
+                      ...(goal.history || []),
+                    ],
                   }
                 : goal
             ),
@@ -377,6 +552,10 @@ export const useFinance = () => {
     updateGoalReminder,
     updateReminderSettings,
     addGoalCollaborator,
+    updateGoalCollaboratorRole,
+    addGoalComment,
+    updateGoalDetails,
+    updateGoalAutomation,
     deleteIncome,
     deleteExpense,
     deleteSubscription,
@@ -394,11 +573,30 @@ export const useFinance = () => {
       recurrence: goal.recurrence || "unica",
       contributions: goal.contributions || [],
       collaborators: goal.collaborators || [],
+      comments: goal.comments || [],
       reminderCadence: goal.reminderCadence || "mensual",
       reminderChannel: goal.reminderChannel || "email",
       sharedCode: goal.sharedCode || "SYNC",
       createdAt,
       deadline: goal.deadline || fallbackDeadlineDate.toISOString(),
+      history:
+        goal.history && goal.history.length
+          ? goal.history
+          : [
+              historyEntry(
+                "Creación",
+                `Meta creada con objetivo de €${goal.cost || 0}`
+              ),
+            ],
+      version: goal.version || 1,
+      autoSchedule:
+        goal.autoSchedule ||
+        ({ enabled: false, cadence: "mensual", amount: 0, nextRun: fallbackDeadlineDate.toISOString() }),
+      shareUrl:
+        goal.shareUrl ||
+        `${typeof window !== "undefined" ? window.location.origin : "app"}/meta/${
+          goal.sharedCode || "SYNC"
+        }`,
     };
   });
 
@@ -425,6 +623,10 @@ export const useFinance = () => {
     updateGoalReminder,
     updateReminderSettings,
     addGoalCollaborator,
+    updateGoalCollaboratorRole,
+    addGoalComment,
+    updateGoalDetails,
+    updateGoalAutomation,
     deleteIncome,
     deleteExpense,
     deleteSubscription,

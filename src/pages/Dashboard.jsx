@@ -21,11 +21,24 @@ const getHealthLabel = (rate) => {
 
 const expandGoal = (goal) => {
   const progress = goal.cost > 0 ? (goal.saved / goal.cost) * 100 : 0;
-  const deadline = new Date(goal.deadline || goal.createdAt || new Date());
+  const createdAt = new Date(goal.createdAt || new Date());
+  const deadline = new Date(goal.deadline || createdAt);
+  const totalMs = Math.max(deadline - createdAt, 1);
+  const elapsed = Math.max(Date.now() - createdAt.getTime(), 0);
+  const expectedPct = Math.min((elapsed / totalMs) * 100, 100);
+  const delta = progress - expectedPct;
   const daysLeft = Math.max(Math.ceil((deadline - Date.now()) / (1000 * 60 * 60 * 24)), 0);
   const remaining = Math.max(goal.cost - goal.saved, 0);
   const monthly = goal.months ? remaining / goal.months : remaining / 3;
-  return { ...goal, progress, daysLeft, remaining, monthly };
+  const tone =
+    progress >= 90
+      ? "closing"
+      : delta < -10
+      ? "delayed"
+      : delta > 10
+      ? "ahead"
+      : "onTrack";
+  return { ...goal, progress, daysLeft, remaining, monthly, expectedPct, delta, tone };
 };
 
 export const Dashboard = () => {
@@ -36,7 +49,10 @@ export const Dashboard = () => {
   const completedGoals = goals.filter((goal) => goal.saved >= goal.cost);
   const totalGoalSaved = goals.reduce((acc, goal) => acc + Math.min(goal.saved, goal.cost), 0);
   const totalGoalCost = goals.reduce((acc, goal) => acc + goal.cost, 0);
+  const globalProgress = totalGoalCost > 0 ? (totalGoalSaved / totalGoalCost) * 100 : 0;
   const nextGoal = activeGoals.sort((a, b) => a.daysLeft - b.daysLeft)[0];
+  const recurringGoals = goals.filter((goal) => goal.recurrence !== "unica");
+  const autoSchedules = goals.filter((goal) => goal.autoSchedule?.enabled);
   const recentContributions = useMemo(
     () =>
       data.goals
@@ -45,6 +61,7 @@ export const Dashboard = () => {
             ...contribution,
             goal: goal.name,
             category: goal.category,
+            author: contribution.author,
           }))
         )
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -59,9 +76,59 @@ export const Dashboard = () => {
     ? (metrics.totalOut / metrics.totalIncomes) * 100
     : 0;
 
+  const history = metrics.history.slice(-4);
+  const lastPoint = history[history.length - 1];
+  const prevPoint = history[history.length - 2];
+  const trendDelta = lastPoint && prevPoint ? lastPoint.value - prevPoint.value : 0;
+  const trendLabel = trendDelta > 0 ? "Tendencia al alza" : trendDelta < 0 ? "Tendencia a la baja" : "Tendencia estable";
+
   const upcomingGoals = [...data.goals]
     .sort((a, b) => a.saved / a.cost - b.saved / b.cost)
     .slice(0, 3);
+
+  const proactiveAlerts = useMemo(() => {
+    const alerts = [];
+    goals.forEach((goal) => {
+      if (goal.status === "completed" && goal.recurrence !== "unica") {
+        alerts.push({
+          title: `Renueva ${goal.name}`,
+          detail: "Marca el nuevo ciclo o deja que el sistema lo genere automáticamente.",
+          tone: "renew",
+        });
+      }
+      if (goal.status !== "completed" && goal.daysLeft <= 30 && goal.delta < -5) {
+        alerts.push({
+          title: `${goal.name} necesita refuerzo`,
+          detail: `Quedan ${goal.daysLeft} días y tu progreso va ${Math.abs(goal.delta).toFixed(0)}% por detrás.`,
+          tone: "warning",
+        });
+      }
+      if (goal.status !== "completed" && goal.progress >= 95) {
+        alerts.push({
+          title: `${goal.name} casi lista`,
+          detail: "Activa la celebración y planifica la siguiente meta vinculada.",
+          tone: "success",
+        });
+      }
+    });
+    return alerts.slice(0, 4);
+  }, [goals]);
+
+  const recurrenceAdvisors = recurringGoals.map((goal) => ({
+    id: goal.id,
+    label: `${goal.name} (${goal.recurrence})`,
+    helper:
+      goal.status === "completed"
+        ? "Se generará una nueva meta en cuanto confirmes la renovación."
+        : `Renovará el ${new Date(goal.deadline).toLocaleDateString("es-ES")}`,
+  }));
+
+  const milestoneBadges = [25, 50, 75, 100]
+    .filter((threshold) => globalProgress >= threshold)
+    .map((threshold) => ({
+      label: `${threshold}% del plan global`,
+      tone: threshold === 100 ? "ultimate" : threshold >= 75 ? "vip" : "progress",
+    }));
 
   const recentActivity = [
     ...data.incomes.map((i) => ({
@@ -163,6 +230,12 @@ export const Dashboard = () => {
     },
   ];
 
+  const mobileTips = [
+    "Los formularios detectan el teclado virtual y amplían la zona táctil.",
+    "Puedes plegar paneles para ver gráficos en pantalla completa.",
+    "Los botones críticos se ubican en la parte inferior para fácil alcance.",
+  ];
+
   return (
     <div className="space-y-10">
       <SectionTitle
@@ -220,6 +293,174 @@ export const Dashboard = () => {
           </div>
         </div>
 
+        <div className="space-y-4">
+          <div className="rounded-[26px] border border-white/5 bg-[#080d18]/80 p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-white">Briefing personalizado</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-slate-400">en vivo</span>
+            </div>
+
+            <div className="mt-4 grid gap-4 text-sm text-white md:grid-cols-2">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Objetivo global</p>
+                <p className="mt-1 text-2xl font-semibold">{formatCurrency(totalGoalSaved)}</p>
+                <p className="text-[11px] text-slate-400">de {formatCurrency(totalGoalCost || 0)}</p>
+                <div className="mt-3 h-2 rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-sky-200 via-emerald-200 to-white"
+                    style={{ width: `${Math.min(globalProgress, 100)}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] text-slate-400">{globalProgress.toFixed(0)}% completado</p>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-2xl border border-white/5 bg-white/5 px-3 py-2">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Metas activas</p>
+                    <p className="text-lg font-semibold text-white">{activeGoals.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Completadas</p>
+                    <p className="text-lg font-semibold text-emerald-200">{completedGoals.length}</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Tendencia</p>
+                  <p className="text-sm font-semibold text-white">{trendLabel}</p>
+                  {lastPoint && (
+                    <p className="text-[11px] text-slate-400">
+                      Último mes: {formatCurrency(lastPoint.value)} · Variación {trendDelta >= 0 ? "+" : ""}
+                      {formatCurrency(trendDelta)}
+                    </p>
+                  )}
+                </div>
+                {nextGoal && (
+                  <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Próxima fecha límite</p>
+                    <p className="text-sm font-semibold text-white">{nextGoal.name}</p>
+                    <p className="text-[11px] text-slate-400">
+                      {nextGoal.daysLeft} días restantes · falta {formatCurrency(nextGoal.remaining)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[26px] border border-white/5 bg-[#080d18]/70 p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-white">Evolución mensual</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-slate-400">12 meses</span>
+            </div>
+            <div className="mt-6">
+              <SimpleBarChart data={metrics.history.slice(-12)} />
+            </div>
+          </div>
+        </div>
+      </motion.section>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        {statCards.map((card) => (
+          <StatCard key={card.label} {...card} />
+        ))}
+      </div>
+
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="grid gap-6 xl:grid-cols-3"
+      >
+        <div className="surface-card space-y-4 p-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Centro de alertas</h3>
+            <span className="text-xs text-slate-400">Proactivas</span>
+          </div>
+          {proactiveAlerts.length === 0 ? (
+            <p className="text-sm text-slate-400">No hay alertas urgentes. Sigue así ✨</p>
+          ) : (
+            <div className="space-y-3">
+              {proactiveAlerts.map((alert) => (
+                <div
+                  key={alert.title}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                >
+                  <p className="font-medium">{alert.title}</p>
+                  <p className="text-[11px] text-slate-400">{alert.detail}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="surface-card space-y-4 p-6">
+          <h3 className="text-sm font-semibold text-white">Ingresos vs gastos</h3>
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm">
+            <div className="flex items-center justify-between text-xs text-white">
+              <span>Ingresos</span>
+              <span>{formatCurrency(metrics.totalIncomes)}</span>
+            </div>
+            <div className="mt-1 h-1.5 rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-200 to-white"
+                style={{
+                  width: `${Math.min(
+                    metrics.totalIncomes ? (metrics.savings / metrics.totalIncomes) * 100 + 20 : 0,
+                    100
+                  )}%`,
+                }}
+              />
+            </div>
+            <div className="mt-4 flex items-center justify-between text-xs text-white">
+              <span>Gastos + subscripciones</span>
+              <span>{formatCurrency(metrics.totalOut)}</span>
+            </div>
+            <div className="mt-1 h-1.5 rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-rose-200 to-amber-200"
+                style={{ width: `${Math.min(coverage, 100)}%` }}
+              />
+            </div>
+            <p className="mt-3 text-[11px] text-slate-400">
+              Este mes tus gastos representan {coverage.toFixed(0)}% del ingreso. Has reservado {formatCurrency(
+                metrics.savings
+              )} para ahorro estratégico.
+            </p>
+          </div>
+        </div>
+
+        <div className="surface-card space-y-4 p-6">
+          <h3 className="text-sm font-semibold text-white">Gamificación y experiencia móvil</h3>
+          {milestoneBadges.length === 0 ? (
+            <p className="text-sm text-slate-400">Consigue al menos el 25% del objetivo global para desbloquear insignias.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {milestoneBadges.map((badge) => (
+                <span
+                  key={badge.label}
+                  className={`rounded-full border px-3 py-1 text-xs ${
+                    badge.tone === "ultimate"
+                      ? "border-yellow-200/60 text-yellow-100"
+                      : badge.tone === "vip"
+                      ? "border-violet-200/60 text-violet-100"
+                      : "border-emerald-200/60 text-emerald-100"
+                  }`}
+                >
+                  {badge.label}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-xs text-slate-300">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">UX móvil</p>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              {mobileTips.map((tip) => (
+                <li key={tip}>{tip}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
         <div className="rounded-[26px] border border-white/5 bg-[#080d18]/70 p-5">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">Evolución mensual</h3>
@@ -230,12 +471,6 @@ export const Dashboard = () => {
           </div>
         </div>
       </motion.section>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        {statCards.map((card) => (
-          <StatCard key={card.label} {...card} />
-        ))}
-      </div>
 
       <motion.section
         initial={{ opacity: 0, y: 12 }}
@@ -368,6 +603,7 @@ export const Dashboard = () => {
                     <p className="font-medium text-white">{entry.goal}</p>
                     <p className="text-[11px] text-slate-400">
                       {new Date(entry.date).toLocaleDateString("es-ES")} · {entry.category}
+                      {entry.author ? ` · ${entry.author}` : ""}
                       {entry.note ? ` · ${entry.note}` : ""}
                     </p>
                   </div>
@@ -376,6 +612,70 @@ export const Dashboard = () => {
               ))}
             </div>
           )}
+
+          <div className="space-y-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Recordatorios programados</p>
+            {activeGoals.slice(0, 3).map((goal) => (
+              <div key={goal.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center justify-between text-xs text-white">
+                  <span>{goal.name}</span>
+                  <span className="text-slate-400">{goal.reminderCadence || "mensual"}</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Próximo aporte sugerido: {formatCurrency(goal.monthly)} · Canal {goal.reminderChannel}
+                </p>
+              </div>
+            ))}
+            {activeGoals.length === 0 && (
+              <p className="text-xs text-slate-400">Sin metas activas.</p>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="surface-card space-y-4 p-6"
+      >
+        <h3 className="text-sm font-semibold text-white">Metas compartidas</h3>
+        {goals.filter((goal) => goal.collaborators?.length).length === 0 ? (
+          <p className="text-sm text-slate-400">Comparte una meta desde la sección correspondiente para coordinar aportes familiares.</p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-3">
+            {goals
+              .filter((goal) => goal.collaborators?.length)
+              .map((goal) => (
+                <div key={goal.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                  <p className="font-medium text-white">{goal.name}</p>
+                  <p className="text-[11px] text-slate-400">
+                    Código: {goal.sharedCode} · {goal.collaborators.length} participantes
+                  </p>
+                  <p className="mt-2 text-xs text-slate-300">
+                    {goal.collaborators.map((c) => c.name).join(", ")}
+                  </p>
+                </div>
+              ))}
+          </div>
+        )}
+      </motion.div>
+
+      {insights.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="surface-card space-y-4 p-6"
+        >
+          <h3 className="text-sm font-semibold text-white">Recomendaciones inteligentes</h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            {insights.map((tip, idx) => (
+              <div key={`${tip.title}-${idx}`} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white">
+                <p className="font-medium">{tip.title}</p>
+                <p className="mt-2 text-slate-300">{tip.detail}</p>
+              </div>
+            ))}
+          </div>
         </motion.div>
 
         <motion.div
@@ -420,6 +720,38 @@ export const Dashboard = () => {
             ))}
             {activeGoals.length === 0 && (
               <p className="text-xs text-slate-400">Sin metas activas.</p>
+            )}
+          </div>
+
+          <div className="space-y-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Renovaciones recurrentes</p>
+            {recurrenceAdvisors.length === 0 ? (
+              <p className="text-xs text-slate-400">No tienes metas recurrentes todavía.</p>
+            ) : (
+              recurrenceAdvisors.slice(0, 3).map((item) => (
+                <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <p className="font-medium text-white">{item.label}</p>
+                  <p className="text-[11px] text-slate-400">{item.helper}</p>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="space-y-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Automatizaciones</p>
+            {autoSchedules.length === 0 ? (
+              <p className="text-xs text-slate-400">Programa un aporte periódico desde la vista de metas.</p>
+            ) : (
+              autoSchedules.slice(0, 3).map((goal) => (
+                <div key={goal.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <p className="font-medium text-white">{goal.name}</p>
+                  <p className="text-[11px] text-slate-400">
+                    {goal.autoSchedule.cadence} · {formatCurrency(goal.autoSchedule.amount)} · próxima ejecución {goal.autoSchedule.nextRun
+                      ? new Date(goal.autoSchedule.nextRun).toLocaleDateString("es-ES")
+                      : "por definir"}
+                  </p>
+                </div>
+              ))
             )}
           </div>
         </motion.div>
