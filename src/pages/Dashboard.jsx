@@ -783,25 +783,6 @@ export const Dashboard = () => {
           </div>
         )}
       </motion.div>
-
-      {insights.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="surface-card space-y-4 p-6"
-        >
-          <h3 className="text-sm font-semibold text-white">Recomendaciones inteligentes</h3>
-          <div className="grid gap-4 md:grid-cols-3">
-            {insights.map((tip, idx) => (
-              <div key={`${tip.title}-${idx}`} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white">
-                <p className="font-medium">{tip.title}</p>
-                <p className="mt-2 text-slate-300">{tip.detail}</p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 };
