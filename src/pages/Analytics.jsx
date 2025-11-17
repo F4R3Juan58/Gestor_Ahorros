@@ -159,6 +159,33 @@ export const Analytics = () => {
           )}
         </motion.div>
       </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="surface-card grid gap-6 p-6 md:grid-cols-3"
+      >
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Mes con mejor ahorro</p>
+          <p className="mt-2 text-sm text-white">
+            {metrics.history.length > 0
+              ? metrics.history.reduce((best, item) => (item.value > best.value ? item : best), metrics.history[0]).label
+              : "Registra movimientos"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Mes con mayor gasto</p>
+          <p className="mt-2 text-sm text-white">
+            {metrics.history.length > 0
+              ? metrics.history.reduce((worst, item) => (item.value < worst.value ? item : worst), metrics.history[0]).label
+              : "Registra movimientos"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Ahorro actual</p>
+          <p className="mt-2 text-sm text-white">{formatCurrency(metrics.savings)}</p>
+        </div>
+      </motion.div>
     </div>
   );
 };

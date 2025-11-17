@@ -460,6 +460,16 @@ export const Dashboard = () => {
             </ul>
           </div>
         </div>
+
+        <div className="rounded-[26px] border border-white/5 bg-[#080d18]/70 p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Evolución mensual</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-slate-400">12 meses</span>
+          </div>
+          <div className="mt-6">
+            <SimpleBarChart data={metrics.history.slice(-12)} />
+          </div>
+        </div>
       </motion.section>
 
       <motion.section
@@ -602,6 +612,70 @@ export const Dashboard = () => {
               ))}
             </div>
           )}
+
+          <div className="space-y-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Recordatorios programados</p>
+            {activeGoals.slice(0, 3).map((goal) => (
+              <div key={goal.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center justify-between text-xs text-white">
+                  <span>{goal.name}</span>
+                  <span className="text-slate-400">{goal.reminderCadence || "mensual"}</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Próximo aporte sugerido: {formatCurrency(goal.monthly)} · Canal {goal.reminderChannel}
+                </p>
+              </div>
+            ))}
+            {activeGoals.length === 0 && (
+              <p className="text-xs text-slate-400">Sin metas activas.</p>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="surface-card space-y-4 p-6"
+      >
+        <h3 className="text-sm font-semibold text-white">Metas compartidas</h3>
+        {goals.filter((goal) => goal.collaborators?.length).length === 0 ? (
+          <p className="text-sm text-slate-400">Comparte una meta desde la sección correspondiente para coordinar aportes familiares.</p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-3">
+            {goals
+              .filter((goal) => goal.collaborators?.length)
+              .map((goal) => (
+                <div key={goal.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                  <p className="font-medium text-white">{goal.name}</p>
+                  <p className="text-[11px] text-slate-400">
+                    Código: {goal.sharedCode} · {goal.collaborators.length} participantes
+                  </p>
+                  <p className="mt-2 text-xs text-slate-300">
+                    {goal.collaborators.map((c) => c.name).join(", ")}
+                  </p>
+                </div>
+              ))}
+          </div>
+        )}
+      </motion.div>
+
+      {insights.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="surface-card space-y-4 p-6"
+        >
+          <h3 className="text-sm font-semibold text-white">Recomendaciones inteligentes</h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            {insights.map((tip, idx) => (
+              <div key={`${tip.title}-${idx}`} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white">
+                <p className="font-medium">{tip.title}</p>
+                <p className="mt-2 text-slate-300">{tip.detail}</p>
+              </div>
+            ))}
+          </div>
         </motion.div>
 
         <motion.div
