@@ -31,6 +31,15 @@ export const Analytics = () => {
 
   const recurrenceGoals = data.goals.filter((goal) => goal.recurrence !== "unica");
 
+  const monthlyTrend = metrics.history.slice(-6);
+  const hasData = monthlyTrend.length > 0;
+
+  const commentary = hasData
+    ? metrics.avgMonthly > 0
+      ? "Tu media mensual es positiva: mantén el hábito y reserva parte para tus metas."
+      : "La media mensual es negativa. Revisa gastos recurrentes o incrementa tus ingresos."
+    : "Registra movimientos para ver recomendaciones personalizadas.";
+
   return (
     <div className="space-y-8">
       <SectionTitle
@@ -159,6 +168,33 @@ export const Analytics = () => {
           )}
         </motion.div>
       </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="surface-card grid gap-6 p-6 md:grid-cols-3"
+      >
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Mes con mejor ahorro</p>
+          <p className="mt-2 text-sm text-white">
+            {metrics.history.length > 0
+              ? metrics.history.reduce((best, item) => (item.value > best.value ? item : best), metrics.history[0]).label
+              : "Registra movimientos"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Mes con mayor gasto</p>
+          <p className="mt-2 text-sm text-white">
+            {metrics.history.length > 0
+              ? metrics.history.reduce((worst, item) => (item.value < worst.value ? item : worst), metrics.history[0]).label
+              : "Registra movimientos"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Ahorro actual</p>
+          <p className="mt-2 text-sm text-white">{formatCurrency(metrics.savings)}</p>
+        </div>
+      </motion.div>
     </div>
   );
 };

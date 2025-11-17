@@ -83,6 +83,12 @@ const toneStyles = {
   },
 };
 
+const formatCurrency = (value) =>
+  (value || 0).toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR",
+  });
+
 export const Goals = () => {
   const {
     data,
