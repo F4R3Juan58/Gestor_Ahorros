@@ -1,16 +1,50 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useFinance } from "../context/FinanceContext";
 import { SectionTitle } from "../components/SectionTitle";
 import { motion } from "framer-motion";
 
+const formatCurrency = (value) =>
+  (value || 0).toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR",
+  });
+
+const periodFilters = [
+  { value: "month", label: "Mes actual" },
+  { value: "year", label: "Año" },
+  { value: "all", label: "Todo" },
+];
+
 export const Incomes = () => {
-  const { data, addIncome, metrics } = useFinance();
+  const { data, addIncome, metrics, deleteIncome } = useFinance();
   const [form, setForm] = useState({
     type: "Sueldo",
     amount: "",
     date: new Date().toISOString().slice(0, 10),
     notes: "",
   });
+  const [search, setSearch] = useState("");
+  const [period, setPeriod] = useState("month");
+
+  const filteredIncomes = useMemo(() => {
+    return data.incomes.filter((income) => {
+      const matchesSearch = `${income.type} ${income.notes}`
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      if (!matchesSearch) return false;
+
+      if (period === "all") return true;
+      const date = new Date(income.date);
+      const now = new Date();
+      if (period === "month") {
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      }
+      if (period === "year") {
+        return date.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+  }, [data.incomes, search, period]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -33,79 +67,70 @@ export const Incomes = () => {
     <div className="space-y-8">
       <SectionTitle
         title="Ingresos"
-        subtitle="Registra sueldos, ayudas, pagas e ingresos extra con una vista clara de lo que entra cada mes."
+        subtitle="Registra sueldos, ayudas y entradas extraordinarias con una vista cuidada."
       />
 
-      {/* RESUMEN RÁPIDO */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl bg-gradient-to-br from-emerald-500/15 via-sky-500/10 to-slate-900/80 p-5 ring-1 ring-emerald-400/40 backdrop-blur-2xl shadow-xl shadow-black/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        className="surface-card grid gap-6 p-6 lg:grid-cols-2"
       >
         <div>
-          <p className="text-xs text-emerald-200/90 font-medium uppercase tracking-wide">
-            Ingresos este mes
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Ingresos del mes</p>
+          <p className="mt-2 text-3xl font-semibold text-white">
+            {formatCurrency(metrics.totalIncomes)}
           </p>
-          <p className="mt-1 text-3xl font-semibold text-emerald-100">
-            {metrics.totalIncomes.toLocaleString("es-ES", {
-              style: "currency",
-              currency: "EUR",
-            })}
-          </p>
-          <p className="mt-1 text-xs text-slate-200/80">
-            Esta es la suma de todos los ingresos registrados en el mes actual.
+          <p className="mt-2 text-sm text-slate-400">
+            Promedio mensual: {formatCurrency(metrics.avgMonthly)} · Ahorro estimado: {formatCurrency(metrics.savings)}
           </p>
         </div>
-
-        <div className="text-xs text-slate-200/80 space-y-1 sm:text-right">
-          <p>
-            <span className="text-slate-400">Ingresos registrados:</span>{" "}
-            <span className="font-medium text-sky-200">
-              {data.incomes.length}
-            </span>
-          </p>
-          <p>
-            <span className="text-slate-400">Ahorro estimado mes actual:</span>{" "}
-            <span className="font-medium text-sky-200">
-              {metrics.savings.toLocaleString("es-ES", {
-                style: "currency",
-                currency: "EUR",
-              })}
-            </span>
-          </p>
-          <p className="text-[11px] text-slate-400">
-            Mantener un registro constante te ayuda a tomar mejores decisiones.
-          </p>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Filtros rápidos</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {periodFilters.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setPeriod(option.value)}
+                className={`rounded-2xl border px-4 py-1.5 text-xs ${
+                  period === option.value
+                    ? "border-white/40 bg-white/10 text-white"
+                    : "border-white/10 text-slate-400"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por tipo o nota"
+            className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-400"
+          />
         </div>
       </motion.div>
 
-      <div className="grid gap-8 md:grid-cols-[1.15fr,1fr]">
-        {/* FORMULARIO */}
+      <div className="grid gap-8 md:grid-cols-[1.1fr,1fr]">
         <motion.form
           onSubmit={handleSubmit}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="space-y-5 rounded-4xl bg-slate-950/75 backdrop-blur-2xl p-6 shadow-xl ring-1 ring-white/10 shadow-slate-950/70"
+          className="surface-card space-y-5 p-6"
         >
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-slate-100 tracking-tight">
-              Añadir nuevo ingreso
-            </h3>
-            <span className="text-[11px] text-slate-400">
-              Sueldo, ayudas, pagas extra, trabajos puntuales...
-            </span>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Añadir nuevo ingreso</h3>
+            <span className="text-[11px] text-slate-400">Sueldos, ayudas, pagas extra...</span>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Tipo */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-300">Tipo</label>
+              <label className="text-xs text-slate-400">Tipo</label>
               <select
                 name="type"
                 value={form.type}
                 onChange={handleChange}
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 px-3 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 ring-sky-400/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
               >
                 <option>Sueldo</option>
                 <option>Ayuda</option>
@@ -114,101 +139,98 @@ export const Incomes = () => {
               </select>
             </div>
 
-            {/* Cantidad */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-300">Cantidad (€)</label>
+              <label className="text-xs text-slate-400">Cantidad (€)</label>
               <input
                 type="number"
                 name="amount"
                 value={form.amount}
                 onChange={handleChange}
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 px-3 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 ring-sky-400/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                 step="0.01"
                 min="0"
                 required
               />
             </div>
 
-            {/* Fecha */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-300">Fecha</label>
+              <label className="text-xs text-slate-400">Fecha</label>
               <input
                 type="date"
                 name="date"
                 value={form.date}
                 onChange={handleChange}
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 px-3 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 ring-sky-400/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
                 required
               />
             </div>
 
-            {/* Notas */}
             <div className="md:col-span-2 space-y-1">
-              <label className="text-xs text-slate-300">Notas</label>
+              <label className="text-xs text-slate-400">Notas</label>
               <textarea
                 name="notes"
                 value={form.notes}
                 onChange={handleChange}
                 rows={2}
                 placeholder="Ej: Sueldo mensual, paga extra, ayuda estatal..."
-                className="w-full resize-none rounded-3xl border border-slate-700/50 bg-slate-900/80 px-3 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 ring-sky-400/40"
+                className="w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
               />
             </div>
           </div>
 
-          {/* BOTÓN */}
           <motion.button
             whileTap={{ scale: 0.97 }}
-            whileHover={{ scale: 1.02 }}
             type="submit"
-            className="inline-flex items-center justify-center rounded-3xl bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-fuchsia-700/40 transition"
+            className="rounded-2xl border border-white/20 bg-white/10 px-5 py-2 text-sm font-semibold text-white"
           >
             Guardar ingreso
           </motion.button>
         </motion.form>
 
-        {/* LISTA DE INGRESOS */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.1 }}
-          className="space-y-4 rounded-4xl bg-slate-950/75 backdrop-blur-2xl p-6 shadow-xl ring-1 ring-white/10 shadow-slate-950/70"
+          transition={{ delay: 0.1 }}
+          className="surface-card space-y-4 p-6 text-sm"
         >
-          <h3 className="text-sm font-semibold text-slate-100 tracking-tight">
-            Ingresos recientes
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Ingresos filtrados</h3>
+            <span className="text-xs text-slate-400">{filteredIncomes.length} registros</span>
+          </div>
 
-          <div className="max-h-80 overflow-y-auto space-y-3 pr-1 custom-scroll text-xs">
-            {data.incomes.length === 0 ? (
-              <p className="text-slate-400">
-                Todavía no has registrado ningún ingreso.
-              </p>
+          <div className="max-h-80 space-y-3 overflow-y-auto pr-1 custom-scroll">
+            {filteredIncomes.length === 0 ? (
+              <p className="text-slate-400">No se encontraron ingresos con los filtros aplicados.</p>
             ) : (
-              data.incomes
+              filteredIncomes
                 .slice()
                 .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .map((i, idx) => (
-                  <motion.div
-                    key={i.id}
-                    initial={{ opacity: 0, x: 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.03 }}
-                    className="flex items-center justify-between rounded-3xl bg-slate-900/80 px-4 py-3 ring-1 ring-slate-800/70 shadow-md shadow-black/30"
+                .map((income) => (
+                  <div
+                    key={income.id}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                   >
-                    <div>
-                      <p className="font-medium text-slate-100">{i.type}</p>
-                      <p className="text-[11px] text-slate-400">
-                        {new Date(i.date).toLocaleDateString("es-ES")}
-                        {i.notes && ` · ${i.notes}`}
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-white">{income.type}</p>
+                        <p className="text-[11px] text-slate-400">
+                          {new Date(income.date).toLocaleDateString("es-ES")}
+                          {income.notes ? ` · ${income.notes}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteIncome(income.id)}
+                        className="text-xs text-slate-400 hover:text-rose-200"
+                        aria-label="Eliminar ingreso"
+                      >
+                        Eliminar
+                      </button>
                     </div>
-                    <p className="font-semibold text-emerald-400">
-                      {i.amount.toLocaleString("es-ES", {
-                        style: "currency",
-                        currency: "EUR",
-                      })}
+                    <p className="mt-2 text-sm font-semibold text-emerald-200">
+                      {formatCurrency(income.amount)}
                     </p>
-                  </motion.div>
+                  </div>
                 ))
             )}
           </div>

@@ -1,10 +1,16 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useFinance } from "../context/FinanceContext";
 import { SectionTitle } from "../components/SectionTitle";
 import { motion } from "framer-motion";
 
+const formatCurrency = (value) =>
+  (value || 0).toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR",
+  });
+
 export const Subscriptions = () => {
-  const { data, addSubscription } = useFinance();
+  const { data, addSubscription, deleteSubscription } = useFinance();
 
   const [form, setForm] = useState({
     name: "",
@@ -14,6 +20,18 @@ export const Subscriptions = () => {
     startDate: new Date().toISOString().slice(0, 10),
     endDate: "",
   });
+  const [filterType, setFilterType] = useState("all");
+
+  const filteredSubscriptions = useMemo(() => {
+    return data.subscriptions
+      .filter((sub) => (filterType === "all" ? true : sub.type === filterType))
+      .sort((a, b) => b.cost - a.cost);
+  }, [data.subscriptions, filterType]);
+
+  const totalCost = data.subscriptions.reduce(
+    (acc, sub) => acc + Number(sub.cost || 0),
+    0
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -38,249 +56,173 @@ export const Subscriptions = () => {
     }));
   };
 
-  const fixedSubs = data.subscriptions.filter((s) => s.type === "fija");
-  const tempSubs = data.subscriptions.filter((s) => s.type === "temporal");
-
-  const totalFixed = fixedSubs.reduce((acc, s) => acc + Number(s.cost || 0), 0);
-  const totalTemp = tempSubs.reduce((acc, s) => acc + Number(s.cost || 0), 0);
-
   return (
     <div className="space-y-8">
       <SectionTitle
         title="Subscripciones"
-        subtitle="Gestiona tus servicios fijos (Netflix, gimnasio...) y temporales."
+        subtitle="Gestiona servicios digitales con visión premium y controla su impacto mensual."
       />
 
-      {/* RESUMEN */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl bg-gradient-to-br from-indigo-500/20 via-sky-500/10 to-slate-900/60 
-                   p-6 ring-1 ring-indigo-400/30 backdrop-blur-xl shadow-xl shadow-black/40
-                   grid grid-cols-2 gap-6 sm:grid-cols-4 text-xs"
+        className="surface-card grid gap-6 p-6 lg:grid-cols-2"
       >
         <div>
-          <p className="text-slate-300 uppercase tracking-tight">Fijas</p>
-          <p className="mt-1 text-xl font-semibold text-emerald-300">
-            {totalFixed.toLocaleString("es-ES", {
-              style: "currency",
-              currency: "EUR",
-            })}
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Gasto recurrente</p>
+          <p className="mt-2 text-3xl font-semibold text-white">
+            {formatCurrency(totalCost)} / mes
+          </p>
+          <p className="mt-2 text-sm text-slate-400">
+            {data.subscriptions.length} servicios activos
           </p>
         </div>
-
-        <div>
-          <p className="text-slate-300 uppercase tracking-tight">Temporales</p>
-          <p className="mt-1 text-xl font-semibold text-amber-300">
-            {totalTemp.toLocaleString("es-ES", {
-              style: "currency",
-              currency: "EUR",
-            })}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-slate-300 uppercase tracking-tight">Activas</p>
-          <p className="mt-1 text-xl font-semibold text-sky-300">
-            {data.subscriptions.length}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-slate-300 uppercase tracking-tight">
-            Total mensual
-          </p>
-          <p className="mt-1 text-xl font-semibold text-fuchsia-300">
-            {(totalFixed + totalTemp).toLocaleString("es-ES", {
-              style: "currency",
-              currency: "EUR",
-            })}
-          </p>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Filtrar por tipo</p>
+          <div className="mt-3 flex gap-2">
+            {["all", "fija", "temporal"].map((option) => (
+              <button
+                key={option}
+                onClick={() => setFilterType(option)}
+                className={`rounded-2xl border px-4 py-1 text-xs capitalize ${
+                  filterType === option
+                    ? "border-white/40 bg-white/10 text-white"
+                    : "border-white/10 text-slate-400"
+                }`}
+              >
+                {option === "all" ? "Todas" : option}
+              </button>
+            ))}
+          </div>
         </div>
       </motion.div>
 
       <div className="grid gap-8 lg:grid-cols-[1.15fr,1fr]">
-
-        {/* FORMULARIO */}
         <motion.form
           onSubmit={handleSubmit}
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="space-y-6 rounded-4xl bg-slate-950/70 backdrop-blur-xl p-6 
-                     shadow-xl ring-1 ring-white/10 shadow-black/40"
+          className="surface-card space-y-6 p-6"
         >
-          <h3 className="text-sm font-semibold text-slate-200 tracking-tight">
-            Añadir subscripción
-          </h3>
+          <h3 className="text-sm font-semibold text-white">Añadir subscripción</h3>
 
           <div className="grid gap-4 md:grid-cols-2">
-
-            {/* Nombre */}
             <div className="md:col-span-2 space-y-1">
-              <label className="text-xs text-slate-300">Nombre</label>
+              <label className="text-xs text-slate-400">Nombre</label>
               <input
                 type="text"
                 name="name"
                 value={form.name}
                 onChange={handleChange}
-                placeholder="Netflix, Spotify, Amazon Prime..."
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 
-                           px-4 py-2.5 text-sm text-slate-100 outline-none 
-                           focus:ring-2 ring-indigo-400/40"
+                placeholder="Netflix, Spotify, gimnasio..."
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
               />
             </div>
 
-            {/* Coste */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-300">Coste mensual (€)</label>
+              <label className="text-xs text-slate-400">Coste mensual (€)</label>
               <input
                 type="number"
                 name="cost"
                 value={form.cost}
                 onChange={handleChange}
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 
-                           px-4 py-2.5 text-sm text-slate-100 outline-none 
-                           focus:ring-2 ring-indigo-400/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
                 step="0.01"
                 min="0"
               />
             </div>
 
-            {/* Tipo */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-300">Tipo</label>
+              <label className="text-xs text-slate-400">Tipo</label>
               <select
                 name="type"
                 value={form.type}
                 onChange={handleChange}
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 
-                           px-4 py-2.5 text-sm text-slate-100 outline-none 
-                           focus:ring-2 ring-indigo-400/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
               >
                 <option value="fija">Fija</option>
                 <option value="temporal">Temporal</option>
               </select>
             </div>
 
-            {/* Fecha inicio */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-300">Fecha inicio</label>
+              <label className="text-xs text-slate-400">Fecha inicio</label>
               <input
                 type="date"
                 name="startDate"
                 value={form.startDate}
                 onChange={handleChange}
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 
-                           px-4 py-2.5 text-sm text-slate-100 outline-none 
-                           focus:ring-2 ring-indigo-400/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
               />
             </div>
 
-            {/* Fecha fin */}
             {form.type === "temporal" && (
               <div className="space-y-1">
-                <label className="text-xs text-slate-300">Fecha fin</label>
+                <label className="text-xs text-slate-400">Fecha fin</label>
                 <input
                   type="date"
                   name="endDate"
                   value={form.endDate}
                   onChange={handleChange}
-                  className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 
-                             px-4 py-2.5 text-sm text-slate-100 outline-none 
-                             focus:ring-2 ring-indigo-400/40"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
                   required
                 />
               </div>
             )}
           </div>
 
-          {/* BOTÓN */}
           <motion.button
             whileTap={{ scale: 0.97 }}
-            whileHover={{ scale: 1.02 }}
             type="submit"
-            className="inline-flex items-center justify-center rounded-3xl bg-gradient-to-r 
-                       from-sky-500 via-indigo-500 to-fuchsia-500 px-5 py-2.5 
-                       text-sm font-semibold text-slate-950 shadow-lg shadow-fuchsia-700/40 transition"
+            className="rounded-2xl border border-white/20 bg-white/10 px-5 py-2 text-sm font-semibold text-white"
           >
             Guardar subscripción
           </motion.button>
         </motion.form>
 
-        {/* LISTADOS */}
         <motion.div
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.1 }}
-          className="space-y-6 rounded-4xl bg-slate-950/70 backdrop-blur-xl 
-                     p-6 ring-1 ring-white/10 shadow-xl shadow-black/40"
+          transition={{ delay: 0.1 }}
+          className="surface-card space-y-4 p-6 text-sm"
         >
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* FIJAS */}
-            <div>
-              <h4 className="mb-2 text-xs font-semibold text-slate-200">Fijas</h4>
-              <div className="space-y-3">
-                {fixedSubs.length === 0 ? (
-                  <p className="text-slate-500">Sin subscripciones fijas.</p>
-                ) : (
-                  fixedSubs.map((s, idx) => (
-                    <motion.div
-                      key={s.id}
-                      initial={{ opacity: 0, x: 12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="rounded-3xl bg-slate-900/85 p-3 ring-1 ring-slate-800 
-                                 shadow-md shadow-black/30"
-                    >
-                      <p className="font-medium text-slate-100">{s.name}</p>
-                      <p className="text-[11px] text-slate-400 mt-1">
-                        {s.cost.toLocaleString("es-ES", {
-                          style: "currency",
-                          currency: "EUR",
-                        })}{" "}
-                        · {s.frequency}
-                      </p>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* TEMPORALES */}
-            <div>
-              <h4 className="mb-2 text-xs font-semibold text-slate-200">Temporales</h4>
-              <div className="space-y-3">
-                {tempSubs.length === 0 ? (
-                  <p className="text-slate-500">Sin subscripciones temporales.</p>
-                ) : (
-                  tempSubs.map((s, idx) => (
-                    <motion.div
-                      key={s.id}
-                      initial={{ opacity: 0, x: 12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="rounded-3xl bg-slate-900/85 p-3 ring-1 ring-slate-800 
-                                 shadow-md shadow-black/30"
-                    >
-                      <p className="font-medium text-slate-100">{s.name}</p>
-                      <p className="text-[11px] text-slate-400 mt-1">
-                        {s.cost.toLocaleString("es-ES", {
-                          style: "currency",
-                          currency: "EUR",
-                        })}{" "}
-                        · hasta{" "}
-                        {s.endDate
-                          ? new Date(s.endDate).toLocaleDateString("es-ES")
-                          : "sin fecha"}
-                      </p>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-            </div>
-
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Subscripciones filtradas</h3>
+            <span className="text-xs text-slate-400">{filteredSubscriptions.length} registros</span>
           </div>
+
+          {filteredSubscriptions.length === 0 ? (
+            <p className="text-slate-400">No hay subscripciones en este filtro.</p>
+          ) : (
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1 custom-scroll">
+              {filteredSubscriptions.map((sub) => (
+                <div
+                  key={sub.id}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-white">{sub.name}</p>
+                      <p className="text-[11px] text-slate-400">
+                        {sub.frequency} · {sub.type === "fija" ? "Fija" : `Hasta ${sub.endDate ? new Date(sub.endDate).toLocaleDateString("es-ES") : "sin fecha"}`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteSubscription(sub.id)}
+                      className="text-xs text-slate-400 hover:text-rose-200"
+                      aria-label="Eliminar subscripción"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-amber-200">
+                    -{formatCurrency(sub.cost)} / mes
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </motion.div>
       </div>
     </div>

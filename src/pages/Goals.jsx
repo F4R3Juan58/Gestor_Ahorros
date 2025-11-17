@@ -1,10 +1,16 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useFinance } from "../context/FinanceContext";
 import { SectionTitle } from "../components/SectionTitle";
 import { motion } from "framer-motion";
 
+const formatCurrency = (value) =>
+  (value || 0).toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR",
+  });
+
 export const Goals = () => {
-  const { data, addGoal, updateGoalSaved } = useFinance();
+  const { data, addGoal, updateGoalSaved, deleteGoal } = useFinance();
 
   const [form, setForm] = useState({
     name: "",
@@ -13,6 +19,14 @@ export const Goals = () => {
   });
 
   const [savingForm, setSavingForm] = useState({});
+
+  const activeGoals = data.goals.filter((g) => g.saved < g.cost);
+  const completedGoals = data.goals.filter((g) => g.saved >= g.cost);
+
+  const totalToSave = useMemo(
+    () => activeGoals.reduce((acc, goal) => acc + Math.max(goal.cost - goal.saved, 0), 0),
+    [activeGoals]
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,73 +55,76 @@ export const Goals = () => {
     if (!amount) return;
 
     updateGoalSaved(goalId, amount);
-
     setSavingForm((prev) => ({ ...prev, [goalId]: "" }));
   };
-
-  // --- Filtrar metas ---
-  const activeGoals = data.goals.filter((g) => g.saved < g.cost);
-  const completedGoals = data.goals.filter((g) => g.saved >= g.cost);
 
   return (
     <div className="space-y-10">
       <SectionTitle
         title="Metas de ahorro"
-        subtitle="Organiza tus objetivos y sigue tu progreso."
+        subtitle="Organiza tus objetivos con bloques visuales y seguimiento preciso."
       />
 
-      <div className="grid gap-10 lg:grid-cols-[1.15fr,1fr]">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="surface-card grid gap-6 p-6 lg:grid-cols-3"
+      >
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Metas activas</p>
+          <p className="mt-2 text-3xl font-semibold text-white">{activeGoals.length}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Completadas</p>
+          <p className="mt-2 text-3xl font-semibold text-emerald-200">{completedGoals.length}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Capital pendiente</p>
+          <p className="mt-2 text-3xl font-semibold text-amber-200">{formatCurrency(totalToSave)}</p>
+        </div>
+      </motion.div>
 
-        {/* FORMULARIO */}
+      <div className="grid gap-10 lg:grid-cols-[1.1fr,1fr]">
         <motion.form
           onSubmit={handleSubmit}
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="space-y-6 rounded-4xl bg-slate-950/70 backdrop-blur-xl p-6 ring-1 ring-white/10 shadow-xl shadow-black/40"
+          className="surface-card space-y-6 p-6"
         >
-          <h3 className="text-sm font-semibold text-slate-200 tracking-tight">
-            Crear nueva meta
-          </h3>
+          <h3 className="text-sm font-semibold text-white">Crear nueva meta</h3>
 
           <div className="grid gap-4 md:grid-cols-2">
-
-            {/* Nombre */}
             <div className="md:col-span-2 space-y-1">
-              <label className="text-xs text-slate-300">Nombre</label>
+              <label className="text-xs text-slate-400">Nombre</label>
               <input
                 type="text"
                 name="name"
                 value={form.name}
                 onChange={handleChange}
-                placeholder="Viaje, PC nuevo, coche..."
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 px-4 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 ring-sky-400/40"
+                placeholder="Viaje, fondo de emergencia, coche..."
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
               />
             </div>
-
-            {/* Coste */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-300">Coste total (€)</label>
+              <label className="text-xs text-slate-400">Coste total (€)</label>
               <input
                 type="number"
                 name="cost"
                 value={form.cost}
                 onChange={handleChange}
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 px-4 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 ring-sky-400/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
                 step="1"
                 min="0"
               />
             </div>
-
-            {/* Meses */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-300">Plazo (meses)</label>
+              <label className="text-xs text-slate-400">Plazo (meses)</label>
               <input
                 type="number"
                 name="months"
                 value={form.months}
                 onChange={handleChange}
-                className="w-full rounded-3xl border border-slate-700/50 bg-slate-900/80 px-4 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 ring-sky-400/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
                 min="1"
                 max="120"
               />
@@ -116,157 +133,104 @@ export const Goals = () => {
 
           <motion.button
             whileTap={{ scale: 0.97 }}
-            whileHover={{ scale: 1.02 }}
             type="submit"
-            className="inline-flex items-center justify-center rounded-3xl bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-fuchsia-700/40 transition"
+            className="rounded-2xl border border-white/20 bg-white/10 px-5 py-2 text-sm font-semibold text-white"
           >
             Guardar meta
           </motion.button>
         </motion.form>
 
-        {/* LISTA DE METAS */}
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.1 }}
-          className="space-y-6 rounded-4xl bg-slate-950/70 backdrop-blur-xl p-6 ring-1 ring-white/10 shadow-xl shadow-black/40 text-xs"
+          transition={{ delay: 0.1 }}
+          className="surface-card space-y-6 p-6 text-sm"
         >
-          <h3 className="text-sm font-medium text-slate-100">Metas activas</h3>
+          <h3 className="text-sm font-semibold text-white">Metas activas</h3>
 
           {activeGoals.length === 0 ? (
-            <p className="text-slate-400">
-              No tienes metas activas ahora mismo.
-            </p>
+            <p className="text-slate-400">No tienes metas activas ahora mismo.</p>
           ) : (
-            <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
-              {activeGoals.map((g, idx) => {
-                const monthly = g.months > 0 ? g.cost / g.months : 0;
-                const progress = g.cost > 0 ? (g.saved / g.cost) * 100 : 0;
-                const remaining = Math.max(g.cost - g.saved, 0);
+            <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1 custom-scroll">
+              {activeGoals.map((goal) => {
+                const monthly = goal.months > 0 ? goal.cost / goal.months : 0;
+                const progress = goal.cost > 0 ? (goal.saved / goal.cost) * 100 : 0;
+                const remaining = Math.max(goal.cost - goal.saved, 0);
 
                 return (
-                  <motion.div
-                    key={g.id}
-                    initial={{ opacity: 0, x: 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="space-y-3 rounded-3xl bg-slate-900/80 p-4 ring-1 ring-slate-800 shadow-md shadow-black/30"
-                  >
+                  <div key={goal.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-center justify-between">
-                      <p className="text-slate-100 font-medium">{g.name}</p>
-                      <p className="text-[11px] text-slate-400">
-                        {progress.toFixed(0)}%
-                      </p>
+                      <div>
+                        <p className="font-medium text-white">{goal.name}</p>
+                        <p className="text-[11px] text-slate-400">{goal.months} meses · {formatCurrency(goal.cost)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteGoal(goal.id)}
+                        className="text-xs text-slate-400 hover:text-rose-200"
+                        aria-label="Eliminar meta"
+                      >
+                        Eliminar
+                      </button>
                     </div>
-
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                    <div className="mt-3 h-2 rounded-full bg-white/10">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-sky-400 via-emerald-400 to-fuchsia-400 transition-all duration-700"
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-200 via-amber-200 to-white"
                         style={{ width: `${Math.min(progress, 100)}%` }}
                       />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-[11px] text-slate-300">
                       <div>
-                        <p className="text-[11px] text-slate-400">Coste total</p>
-                        <p className="font-medium text-slate-100">
-                          {g.cost.toLocaleString("es-ES", {
-                            style: "currency",
-                            currency: "EUR",
-                          })}
-                        </p>
+                        <p>Ahorrado</p>
+                        <p className="text-white">{formatCurrency(goal.saved)}</p>
                       </div>
-
                       <div>
-                        <p className="text-[11px] text-slate-400">
-                          Ahorro mensual ideal
-                        </p>
-                        <p className="font-medium text-emerald-300">
-                          {monthly.toLocaleString("es-ES", {
-                            style: "currency",
-                            currency: "EUR",
-                          })}
-                        </p>
+                        <p>Restante</p>
+                        <p className="text-amber-200">{formatCurrency(remaining)}</p>
                       </div>
-
                       <div>
-                        <p className="text-[11px] text-slate-400">Ahorrado</p>
-                        <p className="font-medium text-sky-300">
-                          {g.saved.toLocaleString("es-ES", {
-                            style: "currency",
-                            currency: "EUR",
-                          })}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-[11px] text-slate-400">Restante</p>
-                        <p className="font-medium text-amber-300">
-                          {remaining.toLocaleString("es-ES", {
-                            style: "currency",
-                            currency: "EUR",
-                          })}
-                        </p>
+                        <p>Mensual ideal</p>
+                        <p className="text-emerald-200">{formatCurrency(monthly)}</p>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="mt-3 flex items-center gap-2">
                       <input
                         type="number"
-                        value={savingForm[g.id] ?? ""}
-                        onChange={(e) =>
-                          handleSavingChange(g.id, e.target.value)
-                        }
+                        value={savingForm[goal.id] ?? ""}
+                        onChange={(e) => handleSavingChange(goal.id, e.target.value)}
                         placeholder="Cantidad"
-                        className="w-28 rounded-2xl border border-slate-700/70 bg-slate-950/60 px-3 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 ring-sky-400/40"
+                        className="w-28 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white"
                         step="0.01"
                         min="0"
                       />
                       <button
                         type="button"
-                        onClick={() => handleAddSaving(g.id)}
-                        className="flex-shrink-0 rounded-2xl bg-sky-500 px-3 py-1.5 text-[11px] font-semibold text-slate-950 shadow-sm shadow-sky-500/40 transition hover:bg-sky-400"
+                        onClick={() => handleAddSaving(goal.id)}
+                        className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-xs text-white"
                       >
-                        Añadir ahorro
+                        Añadir
                       </button>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
           )}
 
-          {/* METAS COMPLETADAS */}
           {completedGoals.length > 0 && (
-            <div className="pt-6 border-t border-white/10">
-              <h3 className="text-sm font-medium text-slate-100">
-                Metas completadas
-              </h3>
-
-              <div className="space-y-4 mt-3">
-                {completedGoals.map((g, idx) => (
-                  <motion.div
-                    key={g.id}
-                    initial={{ opacity: 0, x: 8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.04 }}
-                    className="rounded-3xl bg-emerald-900/30 p-4 ring-1 ring-emerald-700/40 shadow-md backdrop-blur-xl"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-emerald-300">{g.name}</p>
-                      <span className="text-[11px] text-emerald-400">100%</span>
-                    </div>
-
-                    <p className="text-[11px] text-emerald-200 mt-1">
-                      Objetivo alcanzado 🎉
-                    </p>
-                  </motion.div>
+            <div className="pt-4 border-t border-white/10">
+              <h3 className="text-sm font-semibold text-white">Metas completadas</h3>
+              <div className="mt-3 space-y-3">
+                {completedGoals.map((goal) => (
+                  <div key={goal.id} className="rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-xs text-emerald-100">
+                    <p className="font-medium text-white">{goal.name}</p>
+                    <p className="text-[11px]">Objetivo alcanzado 🎉</p>
+                  </div>
                 ))}
               </div>
             </div>
           )}
         </motion.div>
-
       </div>
     </div>
   );
