@@ -31,15 +31,6 @@ export const Analytics = () => {
 
   const recurrenceGoals = data.goals.filter((goal) => goal.recurrence !== "unica");
 
-  const monthlyTrend = metrics.history.slice(-6);
-  const hasData = monthlyTrend.length > 0;
-
-  const commentary = hasData
-    ? metrics.avgMonthly > 0
-      ? "Tu media mensual es positiva: mantén el hábito y reserva parte para tus metas."
-      : "La media mensual es negativa. Revisa gastos recurrentes o incrementa tus ingresos."
-    : "Registra movimientos para ver recomendaciones personalizadas.";
-
   return (
     <div className="space-y-8">
       <SectionTitle
