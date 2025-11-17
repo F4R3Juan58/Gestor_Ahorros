@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 export const SimpleBarChart = ({ data }) => {
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-2xl bg-slate-900/40 backdrop-blur-xl text-sm text-slate-400 ring-1 ring-white/10">
+      <div className="flex h-40 items-center justify-center rounded-[24px] border border-white/10 bg-white/5 text-sm text-slate-400">
         📉 No hay suficientes datos para mostrar la gráfica.
       </div>
     );
@@ -13,35 +13,29 @@ export const SimpleBarChart = ({ data }) => {
   const max = Math.max(...data.map((d) => Math.abs(d.value))) || 1;
 
   return (
-    <div className="flex h-48 items-end gap-3 px-1">
+    <div className="flex h-52 items-end gap-4">
       {data.map((d, index) => {
         const height = (Math.abs(d.value) / max) * 100;
         const positive = d.value >= 0;
 
         return (
-          <div
-            key={d.key}
-            className="flex flex-1 flex-col items-center gap-2 group"
-          >
-            {/* Contenedor barra */}
+          <div key={d.key} className="group flex flex-1 flex-col items-center gap-3">
             <div className="relative flex h-full w-full items-end justify-center">
-              <div className="relative flex h-full w-8 items-end justify-center overflow-hidden rounded-2xl bg-slate-900/80 ring-1 ring-slate-700/60 shadow-md shadow-black/50 backdrop-blur-xl">
-                {/* Barra */}
+              <div className="relative flex h-full w-9 items-end justify-center overflow-hidden rounded-3xl border border-white/5 bg-white/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                 <motion.div
                   initial={{ height: 0 }}
                   animate={{ height: `${height}%` }}
                   transition={{ duration: 0.6, ease: "easeOut", delay: index * 0.05 }}
-                  className={`w-full rounded-2xl bg-gradient-to-t ${
+                  className={`w-full rounded-3xl bg-gradient-to-t ${
                     positive
-                      ? "from-emerald-500 via-emerald-400 to-sky-300"
-                      : "from-rose-500 via-rose-400 to-amber-300"
-                  } shadow-xl shadow-black/30`}
+                      ? "from-emerald-300/80 via-emerald-200/70 to-white"
+                      : "from-rose-400/80 via-rose-300/70 to-white"
+                  }`}
                 />
               </div>
 
-              {/* Tooltip */}
-              <div className="pointer-events-none absolute -top-6 opacity-0 group-hover:opacity-100 transition opacity duration-200">
-                <div className="rounded-xl bg-slate-900/90 px-2 py-1 text-[10px] shadow-md shadow-black/40 ring-1 ring-white/10">
+              <div className="pointer-events-none absolute -top-8 opacity-0 transition duration-200 group-hover:opacity-100">
+                <div className="rounded-full border border-white/20 bg-[#080b15]/90 px-3 py-1 text-[10px] text-white shadow-lg">
                   {d.value.toLocaleString("es-ES", {
                     style: "currency",
                     currency: "EUR",
@@ -50,8 +44,7 @@ export const SimpleBarChart = ({ data }) => {
               </div>
             </div>
 
-            {/* Etiqueta */}
-            <span className="text-[11px] text-slate-400 group-hover:text-slate-200 transition">
+            <span className="text-[11px] uppercase tracking-wide text-slate-400 group-hover:text-white">
               {d.label}
             </span>
           </div>
