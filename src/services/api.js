@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://15.237.178.217:4000/api";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://15.237.178.217:4000") + "/api";
+
 export const STORAGE_KEY = "savings-auth-profile";
 
 const request = async (path, options = {}) => {
