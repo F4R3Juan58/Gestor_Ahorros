@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useAuth } from "./AuthContext";
-import { getUserData, saveUserData } from "../services/database";
+import { getUserData, saveUserData } from "../services/api";
 
 const STORAGE_KEY = "savings-modern-data-v1";
 
@@ -644,22 +644,37 @@ export const FinanceProvider = ({ children }) => {
   const { data, setData, resetData } = useFinanceStore();
 
   useEffect(() => {
-    if (!user) {
-      resetData();
-      return;
-    }
+    let mounted = true;
+    const hydrate = async () => {
+      if (!user) {
+        resetData();
+        return;
+      }
 
-    const stored = getUserData(user.email);
-    if (stored) {
-      setData(stored);
-    } else {
-      setData(createDefaultData());
-    }
+      try {
+        const stored = await getUserData(user.token);
+        if (mounted) {
+          setData(stored || createDefaultData());
+        }
+      } catch (err) {
+        console.error("No se pudo obtener datos remotos", err);
+        if (mounted) {
+          setData(createDefaultData());
+        }
+      }
+    };
+
+    hydrate();
+    return () => {
+      mounted = false;
+    };
   }, [user, setData, resetData]);
 
   useEffect(() => {
     if (!user) return;
-    saveUserData(user.email, data);
+    saveUserData(user.token, data).catch((err) => {
+      console.error("No se pudo guardar en el backend", err);
+    });
   }, [user, data]);
 
   return <>{children}</>;

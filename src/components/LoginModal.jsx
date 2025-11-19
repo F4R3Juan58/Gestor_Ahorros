@@ -3,20 +3,20 @@ import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 
 export const LoginModal = ({ open, onClose }) => {
-  const { user, login, register, logout, refreshSyncCode } = useAuth();
+  const { user, login, register, logout, refreshSyncCode, loading, error } = useAuth();
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [error, setError] = useState(null);
+  const [localError, setLocalError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const action = mode === "login" ? login : register;
-    const result = action(form);
+    const result = await action(form);
     if (!result.ok) {
-      setError(result.error);
+      setLocalError(result.error);
       return;
     }
-    setError(null);
+    setLocalError(null);
     setForm({ name: "", email: "", password: "" });
     onClose?.();
   };
@@ -127,22 +127,25 @@ export const LoginModal = ({ open, onClose }) => {
                 placeholder="••••••••"
               />
             </div>
-            {error && <p className="text-xs text-red-300">{error}</p>}
+            {(localError || error) && (
+              <p className="text-xs text-red-300">{localError || error}</p>
+            )}
             <p className="text-xs text-slate-400">
-              La cuenta se guarda en una base de datos local cifrada para sincronizar tus datos en cualquier
-              dispositivo usando tus credenciales.
+              Tus datos se guardan en PostgreSQL (backend en 15.237.178.217) para que tu sesión y ahorros se
+              sincronicen en todos los dispositivos.
             </p>
             <button
               type="submit"
-              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-white"
+              disabled={loading}
+              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-white disabled:opacity-60"
             >
-              {mode === "login" ? "Entrar" : "Crear cuenta"}
+              {loading ? "Guardando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
             </button>
             <button
               type="button"
               onClick={() => {
                 setMode((prev) => (prev === "login" ? "register" : "login"));
-                setError(null);
+                setLocalError(null);
               }}
               className="w-full text-center text-xs text-slate-300"
             >

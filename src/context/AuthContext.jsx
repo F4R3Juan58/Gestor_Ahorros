@@ -4,7 +4,7 @@ import {
   registerUser,
   refreshSyncCode,
   STORAGE_KEY as AUTH_STORAGE_KEY,
-} from "../services/database";
+} from "../services/api";
 
 const AuthContext = createContext();
 
@@ -14,28 +14,43 @@ export const AuthProvider = ({ children }) => {
     const stored = window.localStorage.getItem(AUTH_STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const login = ({ email, password }) => {
-    const result = authenticateUser({ email, password });
+  const login = async ({ email, password }) => {
+    setLoading(true);
+    setError(null);
+    const result = await authenticateUser({ email, password });
+    setLoading(false);
     if (result.ok) {
       setUser(result.profile);
+    } else {
+      setError(result.error);
     }
     return result;
   };
 
-  const register = ({ name, email, password }) => {
-    const result = registerUser({ name, email, password });
+  const register = async ({ name, email, password }) => {
+    setLoading(true);
+    setError(null);
+    const result = await registerUser({ name, email, password });
+    setLoading(false);
     if (result.ok) {
       setUser(result.profile);
+    } else {
+      setError(result.error);
     }
     return result;
   };
 
-  const logout = () => setUser(null);
+  const logout = () => {
+    setUser(null);
+    setError(null);
+  };
 
-  const regenerateSyncCode = () => {
+  const regenerateSyncCode = async () => {
     if (!user) return;
-    const profile = refreshSyncCode(user.email);
+    const profile = await refreshSyncCode(user.token);
     setUser(profile);
   };
 
@@ -49,7 +64,9 @@ export const AuthProvider = ({ children }) => {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, refreshSyncCode: regenerateSyncCode }}>
+    <AuthContext.Provider
+      value={{ user, login, register, logout, refreshSyncCode: regenerateSyncCode, loading, error }}
+    >
       {children}
     </AuthContext.Provider>
   );
