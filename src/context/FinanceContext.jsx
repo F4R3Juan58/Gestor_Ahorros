@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useAuth } from "./AuthContext";
+import { getUserData, saveUserData } from "../services/api";
 
 const STORAGE_KEY = "savings-modern-data-v1";
 
@@ -11,7 +13,7 @@ const defaultReminderSettings = {
   hour: "09:00",
 };
 
-const createDefaultData = () => ({
+export const createDefaultData = () => ({
   incomes: [],
   subscriptions: [],
   expenses: [],
@@ -638,6 +640,42 @@ export const useFinance = () => {
 
 // --- Para mantener compatible tu <FinanceProvider> actual ---
 export const FinanceProvider = ({ children }) => {
-  // Ya no necesitamos Context, Zustand funciona sin provider.
+  const { user } = useAuth();
+  const { data, setData, resetData } = useFinanceStore();
+
+  useEffect(() => {
+    let mounted = true;
+    const hydrate = async () => {
+      if (!user) {
+        resetData();
+        return;
+      }
+
+      try {
+        const stored = await getUserData(user.token);
+        if (mounted) {
+          setData(stored || createDefaultData());
+        }
+      } catch (err) {
+        console.error("No se pudo obtener datos remotos", err);
+        if (mounted) {
+          setData(createDefaultData());
+        }
+      }
+    };
+
+    hydrate();
+    return () => {
+      mounted = false;
+    };
+  }, [user, setData, resetData]);
+
+  useEffect(() => {
+    if (!user) return;
+    saveUserData(user.token, data).catch((err) => {
+      console.error("No se pudo guardar en el backend", err);
+    });
+  }, [user, data]);
+
   return <>{children}</>;
 };

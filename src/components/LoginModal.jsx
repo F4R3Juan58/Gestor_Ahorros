@@ -3,13 +3,21 @@ import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 
 export const LoginModal = ({ open, onClose }) => {
-  const { user, login, logout, refreshSyncCode } = useAuth();
-  const [form, setForm] = useState({ name: "", email: "" });
+  const { user, login, register, logout, refreshSyncCode, loading, error } = useAuth();
+  const [mode, setMode] = useState("login");
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [localError, setLocalError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    login(form);
-    setForm({ name: "", email: "" });
+    const action = mode === "login" ? login : register;
+    const result = await action(form);
+    if (!result.ok) {
+      setLocalError(result.error);
+      return;
+    }
+    setLocalError(null);
+    setForm({ name: "", email: "", password: "" });
     onClose?.();
   };
 
@@ -32,7 +40,7 @@ export const LoginModal = ({ open, onClose }) => {
           <div>
             <p className="text-[11px] uppercase tracking-[0.4em] text-slate-400">Cuenta</p>
             <h2 className="text-xl font-semibold text-white">
-              {user ? "Perfil conectado" : "Inicia sesión"}
+              {user ? "Perfil conectado" : mode === "login" ? "Inicia sesión" : "Crea tu cuenta"}
             </h2>
           </div>
           <button
@@ -87,16 +95,18 @@ export const LoginModal = ({ open, onClose }) => {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs text-slate-400">Nombre completo</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white"
-                placeholder="Ej. Laura Sánchez"
-              />
-            </div>
+            {mode === "register" && (
+              <div>
+                <label className="text-xs text-slate-400">Nombre completo</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white"
+                  placeholder="Ej. Laura Sánchez"
+                />
+              </div>
+            )}
             <div>
               <label className="text-xs text-slate-400">Email</label>
               <input
@@ -107,14 +117,41 @@ export const LoginModal = ({ open, onClose }) => {
                 placeholder="tu@correo.com"
               />
             </div>
+            <div>
+              <label className="text-xs text-slate-400">Contraseña</label>
+              <input
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white"
+                placeholder="••••••••"
+              />
+            </div>
+            {(localError || error) && (
+              <p className="text-xs text-red-300">{localError || error}</p>
+            )}
             <p className="text-xs text-slate-400">
-              Guardaremos tus credenciales localmente para conectar futuros dispositivos.
+              Tus datos se guardan en PostgreSQL (backend en 15.237.178.217) para que tu sesión y ahorros se
+              sincronicen en todos los dispositivos.
             </p>
             <button
               type="submit"
-              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-white"
+              disabled={loading}
+              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-white disabled:opacity-60"
             >
-              Entrar
+              {loading ? "Guardando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode((prev) => (prev === "login" ? "register" : "login"));
+                setLocalError(null);
+              }}
+              className="w-full text-center text-xs text-slate-300"
+            >
+              {mode === "login"
+                ? "¿No tienes cuenta? Regístrate aquí"
+                : "¿Ya tienes cuenta? Inicia sesión"}
             </button>
           </form>
         )}
