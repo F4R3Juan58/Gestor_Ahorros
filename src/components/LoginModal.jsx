@@ -130,10 +130,6 @@ export const LoginModal = ({ open, onClose }) => {
             {(localError || error) && (
               <p className="text-xs text-red-300">{localError || error}</p>
             )}
-            <p className="text-xs text-slate-400">
-              Tus datos se guardan en PostgreSQL (backend en 15.237.178.217) para que tu sesión y ahorros se
-              sincronicen en todos los dispositivos.
-            </p>
             <button
               type="submit"
               disabled={loading}
