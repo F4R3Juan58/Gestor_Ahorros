@@ -1,51 +1,72 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import {
+  authenticateUser,
+  registerUser,
+  refreshSyncCode,
+  STORAGE_KEY as AUTH_STORAGE_KEY,
+} from "../services/api";
 
 const AuthContext = createContext();
-const STORAGE_KEY = "savings-auth-profile";
-
-const createSyncCode = () => Math.random().toString(36).slice(2, 7).toUpperCase();
-const createId = () =>
-  typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     if (typeof window === "undefined") return null;
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const stored = window.localStorage.getItem(AUTH_STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const login = ({ name, email }) => {
-    if (!name || !email) return;
-    const profile = {
-      id: createId(),
-      name,
-      email,
-      syncCode: createSyncCode(),
-      createdAt: new Date().toISOString(),
-    };
-    setUser(profile);
+  const login = async ({ email, password }) => {
+    setLoading(true);
+    setError(null);
+    const result = await authenticateUser({ email, password });
+    setLoading(false);
+    if (result.ok) {
+      setUser(result.profile);
+    } else {
+      setError(result.error);
+    }
+    return result;
   };
 
-  const logout = () => setUser(null);
+  const register = async ({ name, email, password }) => {
+    setLoading(true);
+    setError(null);
+    const result = await registerUser({ name, email, password });
+    setLoading(false);
+    if (result.ok) {
+      setUser(result.profile);
+    } else {
+      setError(result.error);
+    }
+    return result;
+  };
 
-  const refreshSyncCode = () =>
-    setUser((prev) =>
-      prev ? { ...prev, syncCode: createSyncCode(), refreshedAt: new Date().toISOString() } : prev
-    );
+  const logout = () => {
+    setUser(null);
+    setError(null);
+  };
+
+  const regenerateSyncCode = async () => {
+    if (!user) return;
+    const profile = await refreshSyncCode(user.token);
+    setUser(profile);
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (user) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
     } else {
-      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
     }
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, refreshSyncCode }}>
+    <AuthContext.Provider
+      value={{ user, login, register, logout, refreshSyncCode: regenerateSyncCode, loading, error }}
+    >
       {children}
     </AuthContext.Provider>
   );
