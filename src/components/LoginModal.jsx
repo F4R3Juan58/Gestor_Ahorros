@@ -3,13 +3,21 @@ import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 
 export const LoginModal = ({ open, onClose }) => {
-  const { user, login, logout, refreshSyncCode } = useAuth();
-  const [form, setForm] = useState({ name: "", email: "" });
+  const { user, login, register, logout, refreshSyncCode } = useAuth();
+  const [mode, setMode] = useState("login");
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [error, setError] = useState(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    login(form);
-    setForm({ name: "", email: "" });
+    const action = mode === "login" ? login : register;
+    const result = action(form);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setError(null);
+    setForm({ name: "", email: "", password: "" });
     onClose?.();
   };
 
@@ -32,7 +40,7 @@ export const LoginModal = ({ open, onClose }) => {
           <div>
             <p className="text-[11px] uppercase tracking-[0.4em] text-slate-400">Cuenta</p>
             <h2 className="text-xl font-semibold text-white">
-              {user ? "Perfil conectado" : "Inicia sesión"}
+              {user ? "Perfil conectado" : mode === "login" ? "Inicia sesión" : "Crea tu cuenta"}
             </h2>
           </div>
           <button
@@ -87,16 +95,18 @@ export const LoginModal = ({ open, onClose }) => {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs text-slate-400">Nombre completo</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white"
-                placeholder="Ej. Laura Sánchez"
-              />
-            </div>
+            {mode === "register" && (
+              <div>
+                <label className="text-xs text-slate-400">Nombre completo</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white"
+                  placeholder="Ej. Laura Sánchez"
+                />
+              </div>
+            )}
             <div>
               <label className="text-xs text-slate-400">Email</label>
               <input
@@ -107,14 +117,38 @@ export const LoginModal = ({ open, onClose }) => {
                 placeholder="tu@correo.com"
               />
             </div>
+            <div>
+              <label className="text-xs text-slate-400">Contraseña</label>
+              <input
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white"
+                placeholder="••••••••"
+              />
+            </div>
+            {error && <p className="text-xs text-red-300">{error}</p>}
             <p className="text-xs text-slate-400">
-              Guardaremos tus credenciales localmente para conectar futuros dispositivos.
+              La cuenta se guarda en una base de datos local cifrada para sincronizar tus datos en cualquier
+              dispositivo usando tus credenciales.
             </p>
             <button
               type="submit"
               className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-white"
             >
-              Entrar
+              {mode === "login" ? "Entrar" : "Crear cuenta"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode((prev) => (prev === "login" ? "register" : "login"));
+                setError(null);
+              }}
+              className="w-full text-center text-xs text-slate-300"
+            >
+              {mode === "login"
+                ? "¿No tienes cuenta? Regístrate aquí"
+                : "¿Ya tienes cuenta? Inicia sesión"}
             </button>
           </form>
         )}

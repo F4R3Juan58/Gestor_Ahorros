@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useAuth } from "./AuthContext";
+import { getUserData, saveUserData } from "../services/database";
 
 const STORAGE_KEY = "savings-modern-data-v1";
 
@@ -11,7 +13,7 @@ const defaultReminderSettings = {
   hour: "09:00",
 };
 
-const createDefaultData = () => ({
+export const createDefaultData = () => ({
   incomes: [],
   subscriptions: [],
   expenses: [],
@@ -638,6 +640,27 @@ export const useFinance = () => {
 
 // --- Para mantener compatible tu <FinanceProvider> actual ---
 export const FinanceProvider = ({ children }) => {
-  // Ya no necesitamos Context, Zustand funciona sin provider.
+  const { user } = useAuth();
+  const { data, setData, resetData } = useFinanceStore();
+
+  useEffect(() => {
+    if (!user) {
+      resetData();
+      return;
+    }
+
+    const stored = getUserData(user.email);
+    if (stored) {
+      setData(stored);
+    } else {
+      setData(createDefaultData());
+    }
+  }, [user, setData, resetData]);
+
+  useEffect(() => {
+    if (!user) return;
+    saveUserData(user.email, data);
+  }, [user, data]);
+
   return <>{children}</>;
 };
