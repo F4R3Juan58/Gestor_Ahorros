@@ -204,8 +204,10 @@ export const Layout = () => {
               <button
                 onClick={() => setOpenSettings(true)}
                 className="rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white"
+                aria-label="Abrir ajustes"
               >
-                Ajustes
+                <span aria-hidden="true">⚙️</span>
+                <span className="sr-only">Ajustes</span>
               </button>
               <button
                 onClick={() => setOpenLogin(true)}
@@ -221,8 +223,10 @@ export const Layout = () => {
               <button
                 onClick={() => setOpenSettings(true)}
                 className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                aria-label="Abrir ajustes"
               >
-                Ajustes
+                <span aria-hidden="true">⚙️</span>
+                <span className="sr-only">Ajustes</span>
               </button>
               <button
                 onClick={() => setOpenLogin(true)}

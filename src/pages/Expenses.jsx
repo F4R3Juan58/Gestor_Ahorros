@@ -12,7 +12,7 @@ const formatCurrency = (value) =>
   });
 
 export const Expenses = () => {
-  const { data, addExpense, metrics, deleteExpense } = useFinance();
+  const { data, addExpense, metrics } = useFinance();
   const [form, setForm] = useState({
     category: "Comida",
     amount: "",
@@ -212,22 +212,12 @@ export const Expenses = () => {
                     key={expense.id}
                     className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-white">{expense.category}</p>
-                        <p className="text-[11px] text-slate-400">
-                          {new Date(expense.date).toLocaleDateString("es-ES")}
-                          {expense.notes ? ` · ${expense.notes}` : ""}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => deleteExpense(expense.id)}
-                        className="text-xs text-slate-400 hover:text-rose-200"
-                        aria-label="Eliminar gasto"
-                      >
-                        Eliminar
-                      </button>
+                    <div>
+                      <p className="font-medium text-white">{expense.category}</p>
+                      <p className="text-[11px] text-slate-400">
+                        {new Date(expense.date).toLocaleDateString("es-ES")}
+                        {expense.notes ? ` · ${expense.notes}` : ""}
+                      </p>
                     </div>
                     <p className="mt-2 text-sm font-semibold text-rose-200">
                       -{formatCurrency(expense.amount)}

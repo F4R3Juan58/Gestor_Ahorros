@@ -10,7 +10,7 @@ const formatCurrency = (value) =>
   });
 
 export const Subscriptions = () => {
-  const { data, addSubscription, deleteSubscription } = useFinance();
+  const { data, addSubscription } = useFinance();
 
   const [form, setForm] = useState({
     name: "",
@@ -200,21 +200,11 @@ export const Subscriptions = () => {
                   key={sub.id}
                   className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-white">{sub.name}</p>
-                      <p className="text-[11px] text-slate-400">
-                        {sub.frequency} · {sub.type === "fija" ? "Fija" : `Hasta ${sub.endDate ? new Date(sub.endDate).toLocaleDateString("es-ES") : "sin fecha"}`}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => deleteSubscription(sub.id)}
-                      className="text-xs text-slate-400 hover:text-rose-200"
-                      aria-label="Eliminar subscripción"
-                    >
-                      Eliminar
-                    </button>
+                  <div>
+                    <p className="font-medium text-white">{sub.name}</p>
+                    <p className="text-[11px] text-slate-400">
+                      {sub.frequency} · {sub.type === "fija" ? "Fija" : `Hasta ${sub.endDate ? new Date(sub.endDate).toLocaleDateString("es-ES") : "sin fecha"}`}
+                    </p>
                   </div>
                   <p className="mt-2 text-sm font-semibold text-amber-200">
                     -{formatCurrency(sub.cost)} / mes
