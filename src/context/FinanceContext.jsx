@@ -565,49 +565,55 @@ export const useFinance = () => {
     resetData,
   } = useFinanceStore();
 
-  const normalizedGoals = data.goals.map((goal) => {
-    const createdAt = goal.createdAt || new Date().toISOString();
-    const fallbackDeadlineDate = new Date(createdAt);
-    fallbackDeadlineDate.setMonth(fallbackDeadlineDate.getMonth() + (goal.months || 6));
-    return {
-      ...goal,
-      category: goal.category || "general",
-      recurrence: goal.recurrence || "unica",
-      contributions: goal.contributions || [],
-      collaborators: goal.collaborators || [],
-      comments: goal.comments || [],
-      reminderCadence: goal.reminderCadence || "mensual",
-      reminderChannel: goal.reminderChannel || "email",
-      sharedCode: goal.sharedCode || "SYNC",
-      createdAt,
-      deadline: goal.deadline || fallbackDeadlineDate.toISOString(),
-      history:
-        goal.history && goal.history.length
-          ? goal.history
-          : [
-              historyEntry(
-                "Creación",
-                `Meta creada con objetivo de €${goal.cost || 0}`
-              ),
-            ],
-      version: goal.version || 1,
-      autoSchedule:
-        goal.autoSchedule ||
-        ({ enabled: false, cadence: "mensual", amount: 0, nextRun: fallbackDeadlineDate.toISOString() }),
-      shareUrl:
-        goal.shareUrl ||
-        `${typeof window !== "undefined" ? window.location.origin : "app"}/meta/${
-          goal.sharedCode || "SYNC"
-        }`,
-    };
-  });
+  const baseData =
+    data && typeof data === "object" ? data : createDefaultData();
+
+  const normalizedGoals = Array.isArray(baseData.goals)
+    ? baseData.goals.map((goal) => {
+        const createdAt = goal.createdAt || new Date().toISOString();
+        const fallbackDeadlineDate = new Date(createdAt);
+        fallbackDeadlineDate.setMonth(fallbackDeadlineDate.getMonth() + (goal.months || 6));
+        return {
+          ...goal,
+          category: goal.category || "general",
+          recurrence: goal.recurrence || "unica",
+          contributions: goal.contributions || [],
+          collaborators: goal.collaborators || [],
+          comments: goal.comments || [],
+          reminderCadence: goal.reminderCadence || "mensual",
+          reminderChannel: goal.reminderChannel || "email",
+          sharedCode: goal.sharedCode || "SYNC",
+          createdAt,
+          deadline: goal.deadline || fallbackDeadlineDate.toISOString(),
+          history:
+            goal.history && goal.history.length
+              ? goal.history
+              : [
+                  historyEntry(
+                    "Creación",
+                    `Meta creada con objetivo de €${goal.cost || 0}`
+                  ),
+                ],
+          version: goal.version || 1,
+          autoSchedule:
+            goal.autoSchedule ||
+            ({ enabled: false, cadence: "mensual", amount: 0, nextRun: fallbackDeadlineDate.toISOString() }),
+          shareUrl:
+            goal.shareUrl ||
+            `${typeof window !== "undefined" ? window.location.origin : "app"}/meta/${
+              goal.sharedCode || "SYNC"
+            }`,
+        };
+      })
+    : [];
 
   const normalizedData = {
-    ...data,
+    ...createDefaultData(),
+    ...baseData,
     goals: normalizedGoals,
     reminderSettings: {
       ...defaultReminderSettings,
-      ...data.reminderSettings,
+      ...baseData.reminderSettings,
     },
   };
 
