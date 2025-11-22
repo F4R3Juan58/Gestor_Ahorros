@@ -10,9 +10,13 @@
 }
 
 body {
-  @apply bg-[#04060d] text-slate-50 antialiased;
+  @apply bg-[#02040b] text-slate-50 antialiased;
   min-height: 100vh;
   letter-spacing: 0.01em;
+  background: radial-gradient(140% 120% at 10% 10%, rgba(111, 168, 255, 0.12), transparent 40%),
+    radial-gradient(120% 120% at 80% 20%, rgba(255, 194, 120, 0.12), transparent 40%),
+    radial-gradient(120% 120% at 60% 80%, rgba(57, 213, 185, 0.08), transparent 50%),
+    linear-gradient(135deg, rgba(9, 12, 20, 0.85), rgba(2, 4, 11, 0.95));
 }
 
 body::before,
@@ -22,14 +26,14 @@ body::after {
   inset: 0;
   z-index: -2;
   pointer-events: none;
-  background: radial-gradient(circle at 10% 20%, rgba(108, 155, 255, 0.18), transparent 45%),
-    radial-gradient(circle at 80% 0%, rgba(217, 180, 130, 0.18), transparent 40%),
-    radial-gradient(circle at 70% 80%, rgba(35, 211, 176, 0.12), transparent 40%);
+  background: radial-gradient(circle at 12% 25%, rgba(255, 255, 255, 0.08), transparent 36%),
+    radial-gradient(circle at 78% 12%, rgba(255, 214, 164, 0.08), transparent 36%),
+    radial-gradient(circle at 65% 82%, rgba(119, 255, 218, 0.07), transparent 40%);
   mix-blend-mode: screen;
 }
 
 .app-gradient-bg {
-  background: linear-gradient(145deg, rgba(10, 13, 24, 0.9), rgba(4, 6, 13, 0.92));
+  background: linear-gradient(160deg, rgba(9, 12, 20, 0.92), rgba(6, 9, 16, 0.96));
 }
 
 ::selection {
@@ -63,14 +67,36 @@ body::after {
 
 @layer components {
   .surface-card {
-    @apply rounded-[28px] border border-white/5 bg-[#0b1220]/80 shadow-[0_25px_70px_rgba(3,7,18,0.65)] backdrop-blur-2xl;
+    @apply rounded-[28px] border border-white/10 bg-[#0b1220]/75 shadow-[0_25px_70px_rgba(2,6,23,0.65)] backdrop-blur-2xl;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .surface-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.04), transparent 35%),
+      radial-gradient(circle at 80% 10%, rgba(226, 182, 120, 0.06), transparent 35%);
+    pointer-events: none;
   }
 
   .surface-soft {
-    @apply rounded-[24px] border border-white/5 bg-[#0f172a]/70 shadow-[0_20px_55px_rgba(3,7,18,0.55)] backdrop-blur-xl;
+    @apply rounded-[24px] border border-white/10 bg-[#0f172a]/75 shadow-[0_22px_60px_rgba(3,7,18,0.55)] backdrop-blur-xl;
   }
 
   .chip-muted {
     @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-wide text-slate-300;
+  }
+
+  .panel-grid {
+    display: grid;
+    grid-auto-rows: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .panel-tile {
+    @apply h-full rounded-[22px] border border-white/10 bg-white/5 p-4;
+    backdrop-filter: blur(8px);
   }
 }
