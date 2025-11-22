@@ -458,7 +458,7 @@ export const Dashboard = () => {
       </motion.section>
 
       {/* ================= ESTADÍSTICAS ================= */}
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="panel-grid md:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (
           <StatCard key={card.label} {...card} />
         ))}
@@ -469,10 +469,10 @@ export const Dashboard = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="grid gap-6 xl:grid-cols-3"
+        className="panel-grid xl:grid-cols-3"
       >
         {/* ----------- CENTRO DE ALERTAS ----------- */}
-        <div className="surface-card space-y-4 p-6">
+        <div className="surface-card h-full flex-col space-y-4 p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">Centro de alertas</h3>
             <span className="text-xs text-slate-400">Proactivas</span>
@@ -498,7 +498,7 @@ export const Dashboard = () => {
         </div>
 
         {/* ----------- INGRESOS VS GASTOS ----------- */}
-        <div className="surface-card space-y-4 p-6">
+        <div className="surface-card h-full flex-col space-y-4 p-6">
           <h3 className="text-sm font-semibold text-white">Ingresos vs gastos</h3>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm">
@@ -542,7 +542,7 @@ export const Dashboard = () => {
         </div>
 
         {/* ----------- GAMIFICACIÓN ----------- */}
-        <div className="surface-card space-y-4 p-6">
+        <div className="surface-card h-full flex-col space-y-4 p-6">
           <h3 className="text-sm font-semibold text-white">
             Gamificación y experiencia móvil
           </h3>
@@ -590,12 +590,12 @@ export const Dashboard = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="surface-card grid gap-4 p-6 md:grid-cols-4"
+        className="surface-card panel-grid p-6 md:grid-cols-4"
       >
         {globalGoalStats.map((item) => (
           <div
             key={item.label}
-            className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm"
+            className="panel-tile text-sm"
           >
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
               {item.label}
@@ -726,12 +726,12 @@ export const Dashboard = () => {
       </div>
 
       {/* ================= APORTES RECIENTES / METAS COMPARTIDAS ================= */}
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="panel-grid lg:grid-cols-2">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="surface-card space-y-4 p-6"
+          className="surface-card h-full flex-col space-y-4 p-6"
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">
@@ -805,7 +805,7 @@ export const Dashboard = () => {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="surface-card space-y-4 p-6"
+          className="surface-card h-full flex-col space-y-4 p-6"
         >
           <h3 className="text-sm font-semibold text-white">Metas compartidas</h3>
 
@@ -815,13 +815,13 @@ export const Dashboard = () => {
               aportes familiares.
             </p>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="panel-grid md:grid-cols-2 xl:grid-cols-3">
               {goals
                 .filter((goal) => goal.collaborators?.length)
                 .map((goal) => (
                   <div
                     key={goal.id}
-                    className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm"
+                    className="panel-tile text-sm"
                   >
                     <p className="font-medium text-white">{goal.name}</p>
 

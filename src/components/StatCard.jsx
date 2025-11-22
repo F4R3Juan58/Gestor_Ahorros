@@ -31,7 +31,7 @@ export const StatCard = ({ label, value, highlight = "neutral", helper }) => {
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -6 }}
       transition={{ duration: 0.25 }}
-      className="surface-soft relative overflow-hidden p-5"
+      className="surface-soft relative flex h-full flex-col overflow-hidden p-5"
     >
       <div
         className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${config.gradient}`}
