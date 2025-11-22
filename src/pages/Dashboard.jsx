@@ -458,7 +458,7 @@ export const Dashboard = () => {
       </motion.section>
 
       {/* ================= ESTADÍSTICAS ================= */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (
           <StatCard key={card.label} {...card} />
         ))}
@@ -725,8 +725,8 @@ export const Dashboard = () => {
         </motion.div>
       </div>
 
-      {/* ================= APORTES RECIENTES ================= */}
-      <div className="grid gap-8 lg:grid-cols-[1.2fr,0.8fr]">
+      {/* ================= APORTES RECIENTES / METAS COMPARTIDAS ================= */}
+      <div className="grid gap-8 lg:grid-cols-2">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -801,45 +801,44 @@ export const Dashboard = () => {
             )}
           </div>
         </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="surface-card space-y-4 p-6"
+        >
+          <h3 className="text-sm font-semibold text-white">Metas compartidas</h3>
+
+          {goals.filter((goal) => goal.collaborators?.length).length === 0 ? (
+            <p className="text-sm text-slate-400">
+              Comparte una meta desde la sección correspondiente para coordinar
+              aportes familiares.
+            </p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {goals
+                .filter((goal) => goal.collaborators?.length)
+                .map((goal) => (
+                  <div
+                    key={goal.id}
+                    className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm"
+                  >
+                    <p className="font-medium text-white">{goal.name}</p>
+
+                    <p className="text-[11px] text-slate-400">
+                      Código: {goal.sharedCode} · {goal.collaborators.length}{" "}
+                      participantes
+                    </p>
+
+                    <p className="mt-2 text-xs text-slate-300">
+                      {goal.collaborators.map((c) => c.name).join(", ")}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          )}
+        </motion.div>
       </div>
-
-      {/* ================= METAS COMPARTIDAS ================= */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="surface-card space-y-4 p-6"
-      >
-        <h3 className="text-sm font-semibold text-white">Metas compartidas</h3>
-
-        {goals.filter((goal) => goal.collaborators?.length).length === 0 ? (
-          <p className="text-sm text-slate-400">
-            Comparte una meta desde la sección correspondiente para coordinar
-            aportes familiares.
-          </p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-3">
-            {goals
-              .filter((goal) => goal.collaborators?.length)
-              .map((goal) => (
-                <div
-                  key={goal.id}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm"
-                >
-                  <p className="font-medium text-white">{goal.name}</p>
-
-                  <p className="text-[11px] text-slate-400">
-                    Código: {goal.sharedCode} · {goal.collaborators.length}{" "}
-                    participantes
-                  </p>
-
-                  <p className="mt-2 text-xs text-slate-300">
-                    {goal.collaborators.map((c) => c.name).join(", ")}
-                  </p>
-                </div>
-              ))}
-          </div>
-        )}
-      </motion.div>
     </div>
   );
 };
