@@ -65,7 +65,7 @@ export const Layout = () => {
   const coverageLabel = coverage >= 80 ? "Gastos altos" : coverage >= 55 ? "Controlado" : "Ligero";
 
   const asideClass = [
-    "surface-card md:sticky md:top-12 md:h-fit md:w-72 md:self-start",
+    "surface-card md:sticky md:top-10 md:h-fit md:w-72 lg:w-80 md:self-start",
     "flex flex-col gap-6 p-4 md:p-6",
     "fixed left-4 right-4 z-40 origin-top md:relative",
     openMobileNav
@@ -78,7 +78,7 @@ export const Layout = () => {
     <div className="min-h-screen app-gradient-bg text-slate-50">
       <div className="pointer-events-none fixed inset-x-0 top-10 z-0 h-[340px] bg-gradient-to-b from-white/5 via-transparent to-transparent" />
 
-      <div className="relative mx-auto flex max-w-6xl flex-col gap-5 px-4 py-6 md:flex-row md:gap-8 md:py-12">
+      <div className="relative mx-auto flex w-full max-w-full flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10 md:flex-row md:gap-8 md:py-12">
         {/* MOBILE TOP BAR */}
         <header className="flex items-center justify-between rounded-[26px] border border-white/5 bg-[#0b1220]/80 px-4 py-3 shadow-[0_20px_45px_rgba(3,7,18,0.65)] backdrop-blur-xl md:hidden">
           <div className="flex items-center gap-3">
@@ -113,19 +113,13 @@ export const Layout = () => {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-white via-amber-100 to-white text-[#0f172a] text-xl font-semibold">
-              €
+                €
+              </div>
+              <div>
+                <p className="text-base font-semibold">Gestor Ahorros</p>
+                <p className="text-xs text-slate-400">Control fino de tus finanzas</p>
+              </div>
             </div>
-            <div>
-              <p className="text-base font-semibold">Gestor Ahorros</p>
-              <p className="text-xs text-slate-400">Control fino de tus finanzas</p>
-            </div>
-          </div>
-            <button
-              onClick={() => setOpenLogin(true)}
-              className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] text-white"
-            >
-              {user ? user.name.split(" ")[0] : "Login"}
-            </button>
           </div>
 
           {user && (
@@ -155,6 +149,23 @@ export const Layout = () => {
               </NavLink>
             ))}
           </nav>
+
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <button
+              onClick={() => setOpenSettings(true)}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-2 font-semibold text-white hover:border-white/30 hover:bg-white/15"
+            >
+              <span aria-hidden="true">⚙️</span>
+              <span>Ajustes</span>
+            </button>
+            <button
+              onClick={() => setOpenLogin(true)}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 font-semibold text-white hover:border-white/20 hover:bg-white/10"
+            >
+              <span aria-hidden="true">👤</span>
+              <span>{user ? "Perfil" : "Login"}</span>
+            </button>
+          </div>
 
           <div className="space-y-3 rounded-[22px] border border-white/5 bg-white/5 p-4 text-xs text-slate-300">
             <div className="flex items-center justify-between">
@@ -187,12 +198,12 @@ export const Layout = () => {
 
         {/* MAIN AREA */}
         <main className="relative w-full flex-1 space-y-5 md:space-y-6">
-          <div className="hidden items-center justify-between gap-4 rounded-[28px] border border-white/5 bg-[#0a1120]/70 px-6 py-5 shadow-[0_20px_55px_rgba(3,7,18,0.55)] backdrop-blur-xl md:flex">
+          <div className="hidden items-center justify-between gap-6 rounded-[28px] border border-white/5 bg-[#0a1120]/70 px-8 py-6 shadow-[0_20px_55px_rgba(3,7,18,0.55)] backdrop-blur-xl md:flex">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Panel maestro</p>
               <h1 className="text-2xl font-semibold text-white">Tu resumen financiero a medida</h1>
             </div>
-            <div className="flex items-center gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-5 text-sm">
               <div>
                 <p className="text-[11px] text-slate-400">Ahorro estimado</p>
                 <p className="text-lg font-semibold text-emerald-200">{formatCurrency(metrics.savings)}</p>
@@ -201,40 +212,10 @@ export const Layout = () => {
                 <p className="text-[11px] text-slate-400">Gasto mensual</p>
                 <p className="text-lg font-semibold text-amber-200">{formatCurrency(metrics.totalOut)}</p>
               </div>
-              <button
-                onClick={() => setOpenSettings(true)}
-                className="rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white"
-                aria-label="Abrir ajustes"
-              >
-                <span aria-hidden="true">⚙️</span>
-                <span className="sr-only">Ajustes</span>
-              </button>
-              <button
-                onClick={() => setOpenLogin(true)}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
-              >
-                {user ? "Perfil" : "Login"}
-              </button>
             </div>
           </div>
 
-          <div className="rounded-[34px] border border-white/5 bg-[#05070d]/60 p-4 shadow-[0_30px_80px_rgba(2,6,23,0.75)] backdrop-blur-3xl md:p-8">
-            <div className="flex justify-end md:hidden">
-              <button
-                onClick={() => setOpenSettings(true)}
-                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
-                aria-label="Abrir ajustes"
-              >
-                <span aria-hidden="true">⚙️</span>
-                <span className="sr-only">Ajustes</span>
-              </button>
-              <button
-                onClick={() => setOpenLogin(true)}
-                className="ml-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
-              >
-                {user ? "Perfil" : "Login"}
-              </button>
-            </div>
+          <div className="rounded-[34px] border border-white/5 bg-[#05070d]/60 p-4 shadow-[0_30px_80px_rgba(2,6,23,0.75)] backdrop-blur-3xl sm:p-6 md:p-8">
             <Outlet />
           </div>
         </main>
